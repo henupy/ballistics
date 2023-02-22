@@ -9,17 +9,16 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 # For typing
-num = int | float
+numeric = int | float
 
 
 @dataclass
 class ProjectileData(ABC):
-    m: num
-    v0: num
-    angle: num
-    c_d: num = None
-    rho: num = None
-    area: num = None
+    m: numeric
+    v0: numeric
+    angle: numeric
+    c_d: numeric = None
+    area: numeric = None
 
     @abstractmethod
     def _area(self, *args):
@@ -31,16 +30,15 @@ class ProjectileData(ABC):
 
 
 class Sphere(ProjectileData):
-    def __init__(self, m: num, v0: num, angle: num, c_d: num = None,
-                 rho: num = None, r: num = None):
+    def __init__(self, m: numeric, v0: numeric, angle: numeric, c_d: numeric = None,
+                 r: numeric = None):
         self.m = m
         self.v0 = v0
         self.angle = angle
         self.c_d = c_d
-        self.rho = rho
         self.area = self._area(r)
 
-    def _area(self, r: num) -> Optional[num]:
+    def _area(self, r: numeric) -> Optional[numeric]:
         """
         :param r: Radius of a sphere
         :return:

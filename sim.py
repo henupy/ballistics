@@ -8,10 +8,46 @@ import matplotlib.pyplot as plt
 from projectiles import ProjectileData, Sphere
 
 # For typing
-num = int | float
+numeric = int | float
 
 
-def g_acc(h: num) -> np.ndarray:
+def _rho(pres: numeric, temp: numeric) -> numeric:
+    """
+    Calculates air density from air pressure and temperature according to the
+    Nasa Earth Atmosphere Model
+    (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html)
+    :param pres: Air pressure [lbs/sq ft]
+    :param temp: Air temperature [°F]
+    :return: Air density [slugs/cu ft]
+    """
+    return pres / (1718 * (temp + 459.7))
+
+
+def _get_density(y: numeric) -> numeric:
+    """
+    Returns the air density at the given height using Nasa's Earth Atmosphere
+    Model (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html). This works when
+    y < 82345 feet (~25099 meters)
+    :param y: Height of the projectile [m]
+    :return:
+    """
+    # Convert the height from meters to feet
+    y /= 0.3048
+    if y < 36152:
+        temp = 59 - .00356 * y
+        pres = 2116 * np.power((temp + 459.7) / 518.6, 5.256)
+        rho = _rho(pres=pres, temp=temp)
+    elif 36152 < y < 82345:
+        temp = -70
+        pres = 473.1 * np.exp(1.73 - .000048 * y)
+        rho = _rho(pres=pres, temp=temp)
+    else:
+        raise ValueError('Height is too large')
+    # Convert the density to metric units [kg/m^3]
+    return rho * 515.3788184
+
+
+def _g_acc(h: numeric) -> np.ndarray:
     """
     Calculates the acceleration due to gravital attraction
     between the Earth and the projectile
@@ -26,8 +62,8 @@ def g_acc(h: num) -> np.ndarray:
     return np.array([0, -big_g * m_e / ((r_e + h) * (r_e + h))])
 
 
-def drag_acc(c_d: num, m_p: num, rho: num, vel: np.ndarray, area: num)\
-        -> np.ndarray:
+def _drag_acc(c_d: numeric, m_p: numeric, rho: numeric, vel: np.ndarray,
+              area: numeric) -> np.ndarray:
     """
     Calculates the acceleration due to air resistance
     :param c_d: Drag coefficient
@@ -40,7 +76,7 @@ def drag_acc(c_d: num, m_p: num, rho: num, vel: np.ndarray, area: num)\
     return -0.5 * c_d * rho * (vel * vel) * area / m_p
 
 
-def _simulate(v0: num, alpha: num, dt: num) -> np.ndarray:
+def _simple_sim(v0: numeric, alpha: numeric, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile without air resistance
     :param v0: Magnitude of the initial velocity
@@ -52,7 +88,7 @@ def _simulate(v0: num, alpha: num, dt: num) -> np.ndarray:
     sol = np.zeros((1, 2))
     x, y = 0, 0
     while True:
-        acc_g = g_acc(y)
+        acc_g = _g_acc(y)
         vel = vel + acc_g * dt
         dp = vel * dt
         x += dp[0]
@@ -64,7 +100,7 @@ def _simulate(v0: num, alpha: num, dt: num) -> np.ndarray:
     return sol
 
 
-def simulate(proj: ProjectileData, dt: num) -> np.ndarray:
+def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile with air resistance, if
     all necessary parameters are provided. Otherwise air resistance is
@@ -73,14 +109,16 @@ def simulate(proj: ProjectileData, dt: num) -> np.ndarray:
     :param dt: Timestep
     :return: Array of x- and y-coordinates
     """
-    if None in (proj.c_d, proj.rho, proj.area):
-        return _simulate(proj.v0, proj.angle, dt)
+    if None in (proj.c_d, proj.area):
+        return _simple_sim(v0=proj.v0, alpha=proj.angle, dt=dt)
     vel = np.array([np.cos(proj.angle), np.sin(proj.angle)]) * proj.v0
     sol = np.zeros((1, 2))
     x, y = 0, 0
     while True:
-        acc_g = g_acc(y)
-        acc_drag = drag_acc(proj.c_d, proj.m, proj.rho, vel, proj.area)
+        acc_g = _g_acc(y)
+        rho = _get_density(y)
+        acc_drag = _drag_acc(c_d=proj.c_d, m_p=proj.m, rho=rho, vel=vel,
+                             area=proj.area)
         vel = vel + (acc_g + acc_drag) * dt
         dp = vel * dt
         x += dp[0]
@@ -92,7 +130,7 @@ def simulate(proj: ProjectileData, dt: num) -> np.ndarray:
     return sol
 
 
-def display_results(coords: np.ndarray, dt: num) -> None:
+def display_results(coords: np.ndarray, dt: numeric) -> None:
     """
     Prints out and plots some key characteristics of the trajectory
     :param coords:
@@ -100,8 +138,8 @@ def display_results(coords: np.ndarray, dt: num) -> None:
     :return:
     """
     x, y = coords[:, 0], coords[:, 1]
-    print()
-    print(f'Total distance (in x-direction:) {np.max(x):.3f} m')
+    print('Flight data:')
+    print(f'Total distance (in x-direction): {np.max(x):.3f} m')
     print(f'Highest point: {np.max(y):.3f} m')
     print(f'Flight time: {x.shape[0] * dt:.3f} s')
     plt.plot(coords[:, 0], coords[:, 1])
@@ -111,11 +149,11 @@ def display_results(coords: np.ndarray, dt: num) -> None:
 
 def main():
     m_p, v0, alpha = 9, 500, np.deg2rad(40)
-    rho, c_d, r = 1.2, 0.4, 0.088
+    c_d, r = 0.4, 0.088
     dt = 0.001  # [s]
-    ball = Sphere(m_p, v0, alpha, c_d, rho, r)
-    coords = simulate(ball, dt)
-    display_results(coords, dt)
+    ball = Sphere(m=m_p, v0=v0, angle=alpha, c_d=c_d, r=r)
+    coords = simulate(proj=ball, dt=dt)
+    display_results(coords=coords, dt=dt)
 
 
 if __name__ == '__main__':
