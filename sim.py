@@ -106,7 +106,8 @@ def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile with air resistance, if
     all necessary parameters are provided with the ProjectileData object.
-    Otherwise air resistance is neglected.
+    Otherwise air resistance is neglected. The simulation is continued until
+    the projectile hits the ground.
     :param proj: A ProjectileData-object
     :param dt: Timestep
     :return: Array of x- and y-coordinates
@@ -114,19 +115,18 @@ def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
     if None in (proj.c_d, proj.area):
         return _simple_sim(v0=proj.v0, alpha=proj.angle, dt=dt)
     vel = np.array([np.cos(proj.angle), np.sin(proj.angle)]) * proj.v0
-    sol = np.zeros((1, 2))
-    x, y = 0, 0
+    pos = np.zeros(shape=(2, ))
+    sol = np.zeros(shape=(1, 2))
+    sol[0] = pos
     while True:
-        acc_g = _g_acc(y)
-        rho = _get_density(y)
-        acc_drag = _drag_acc(c_d=proj.c_d, m_p=proj.m, rho=rho, vel=vel,
-                             area=proj.area)
-        vel = vel + (acc_g + acc_drag) * dt
-        dp = vel * dt
-        x += dp[0]
-        y += dp[1]
-        sol = np.vstack((sol, np.array([x, y])))
-        if y < 0:
+        acc = np.zeros(shape=(2, ))
+        acc += _g_acc(pos[1])
+        rho = _get_density(pos[1])
+        acc += _drag_acc(c_d=proj.c_d, m_p=proj.m, rho=rho, vel=vel, area=proj.area)
+        vel += acc * dt
+        pos += vel * dt
+        sol = np.vstack((sol, pos))
+        if pos[1] < 0:
             break
 
     return sol
