@@ -4,7 +4,6 @@ File containing objects for different projectiles
 
 import numpy as np
 
-from typing import Optional
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
@@ -32,17 +31,23 @@ class ProjectileData(ABC):
 class Sphere(ProjectileData):
     def __init__(self, m: numeric, v0: numeric, angle: numeric, c_d: numeric = None,
                  r: numeric = None):
+        """
+        :param m: Mass [kg]
+        :param v0: Initial velocity [m/s]
+        :param angle: Launch angle [deg]
+        :param c_d: Drag coefficient [-]
+        :param r: Radius [m]
+        """
         self.m = m
         self.v0 = v0
-        self.angle = angle
+        self.angle = np.deg2rad(angle)
         self.c_d = c_d
         self.area = self._area(r)
 
-    def _area(self, r: numeric) -> Optional[numeric]:
+    def _area(self, r: numeric) -> numeric:
         """
-        :param r: Radius of a sphere
+        The projected area of the sphere
+        :param r: Radius [m]
         :return:
         """
-        if r is None:
-            return None
         return np.pi * r * r

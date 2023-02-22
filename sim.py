@@ -1,5 +1,6 @@
 """
-Some shiet regarding ballistic trajectories
+Some shiet regarding ballistic trajectories. At this moment, the projectile
+is assumed to be launched from the surface of the Earth.
 """
 
 import numpy as np
@@ -27,7 +28,7 @@ def _get_density(y: numeric) -> numeric:
     """
     Returns the air density at the given height using Nasa's Earth Atmosphere
     Model (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html). This works when
-    y < 82345 feet (~25099 meters)
+    y < 82345 feet (~25099 meters).
     :param y: Height of the projectile [m]
     :return:
     """
@@ -56,10 +57,11 @@ def _g_acc(h: numeric) -> np.ndarray:
     """
     if h == 0:
         return np.array([0, 0])
-    big_g = 6.67259e-11
-    r_e = 6378.14e3
-    m_e = 5.974e24
-    return np.array([0, -big_g * m_e / ((r_e + h) * (r_e + h))])
+    big_g = 6.67259e-11  # Gravitational constant [Nm^2/kg^2]
+    r_e = 6378.14e3  # Radius of the Earth [m]
+    m_e = 5.974e24  # Mass of the earth [kg]
+    r = r_e + h
+    return np.array([0, -big_g * m_e / (r * r)])
 
 
 def _drag_acc(c_d: numeric, m_p: numeric, rho: numeric, vel: np.ndarray,
@@ -103,8 +105,8 @@ def _simple_sim(v0: numeric, alpha: numeric, dt: numeric) -> np.ndarray:
 def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile with air resistance, if
-    all necessary parameters are provided. Otherwise air resistance is
-    neglected.
+    all necessary parameters are provided with the ProjectileData object.
+    Otherwise air resistance is neglected.
     :param proj: A ProjectileData-object
     :param dt: Timestep
     :return: Array of x- and y-coordinates
@@ -148,9 +150,12 @@ def display_results(coords: np.ndarray, dt: numeric) -> None:
 
 
 def main():
-    m_p, v0, alpha = 9, 500, np.deg2rad(40)
-    c_d, r = 0.4, 0.088
-    dt = 0.001  # [s]
+    m_p = 9  # Mass of the projectile [kg]
+    v0 = 500  # Initial velocity of the projectile [m/s]
+    alpha = 40  # Launch angle [deg]
+    c_d = 0.4  # Drag coefficient [-]
+    r = 0.088  # Radius [m]
+    dt = 0.001  # Timestep [s]
     ball = Sphere(m=m_p, v0=v0, angle=alpha, c_d=c_d, r=r)
     coords = simulate(proj=ball, dt=dt)
     display_results(coords=coords, dt=dt)
