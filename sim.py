@@ -169,15 +169,14 @@ def _drag_acc(proj: ProjectileData, rho: numeric, temp: numeric,
     return -0.5 * c_d * rho * (vel * vel) * proj.area / proj.m
 
 
-def _simple_sim(v0: numeric, alpha: numeric, dt: numeric) -> np.ndarray:
+def _simple_sim(v0: np.ndarray, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile without air resistance
     :param v0: Magnitude of the initial velocity
-    :param alpha: Elevation angle
     :param dt: Timestep
     :return: Array of x- and y-coordinates
     """
-    vel = np.array([v0 * np.cos(alpha), v0 * np.sin(alpha)])
+    vel = v0
     pos = np.zeros(shape=(2, ))
     sol = np.zeros(shape=(1, 2))
     sol[0] = pos
@@ -203,8 +202,8 @@ def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
     :return: Array of x- and y-coordinates
     """
     if None in (proj.size, proj.area):
-        return _simple_sim(v0=proj.v0, alpha=proj.angle, dt=dt)
-    vel = np.array([np.cos(proj.angle), np.sin(proj.angle)]) * proj.v0
+        return _simple_sim(v0=proj.v0, dt=dt)
+    vel = proj.v0
     pos = np.zeros(shape=(2, ))
     sol = np.zeros(shape=(1, 2))
     sol[0] = pos
@@ -240,12 +239,15 @@ def display_results(coords: np.ndarray, dt: numeric) -> None:
 
 
 def main():
+    # These values are for the Flak 88 anti-aircraft/anti-tank artillery
+    # Taken from https://en.wikipedia.org/wiki/8.8_cm_Flak_18/36/37/41
     m_p = 9.2  # Mass of the projectile [kg]
-    v0 = 840  # Initial velocity of the projectile [m/s]
+    v0_mag = 840  # Magnitude of the velocity of the projectile [m/s]
     alpha = 30  # Launch angle [deg]
+    v0 = np.array([np.cos(np.deg2rad(alpha)), np.sin(np.deg2rad(alpha))]) * v0_mag
     r = 0.088  # Radius [m]
     dt = 0.001  # Timestep [s]
-    ball = Sphere(m=m_p, v0=v0, angle=alpha, r=r)
+    ball = Sphere(m=m_p, v0=v0, r=r)
     coords = simulate(proj=ball, dt=dt)
     display_results(coords=coords, dt=dt)
 

@@ -13,11 +13,10 @@ numeric = int | float
 
 @dataclass
 class ProjectileData(ABC):
-    m: numeric
-    v0: numeric
-    angle: numeric
-    size: numeric = None
-    area: numeric = None
+    m: numeric  # Mass of the projectile [kg]
+    v0: np.ndarray  # Initial velocity of the projectile [m/s]
+    size: numeric = None  # The characteristic length/size of the projectile [m]
+    area: numeric = None  # The cross sectional/projected area of the body [m^2]
 
     @abstractmethod
     def _area(self, *args):
@@ -29,17 +28,14 @@ class ProjectileData(ABC):
 
 
 class Sphere(ProjectileData):
-    def __init__(self, m: numeric, v0: numeric, angle: numeric,
-                 r: numeric = None) -> None:
+    def __init__(self, m: numeric, v0: np.ndarray, r: numeric = None) -> None:
         """
         :param m: Mass [kg]
         :param v0: Initial velocity [m/s]
-        :param angle: Launch angle [deg]
         :param r: Radius [m]
         """
         self.m = m
         self.v0 = v0
-        self.angle = np.deg2rad(angle)
         self.size = 2 * r
         self.area = self._area(r)
 
