@@ -16,7 +16,7 @@ class ProjectileData(ABC):
     m: numeric
     v0: numeric
     angle: numeric
-    c_d: numeric = None
+    size: numeric = None
     area: numeric = None
 
     @abstractmethod
@@ -29,19 +29,18 @@ class ProjectileData(ABC):
 
 
 class Sphere(ProjectileData):
-    def __init__(self, m: numeric, v0: numeric, angle: numeric, c_d: numeric = None,
-                 r: numeric = None):
+    def __init__(self, m: numeric, v0: numeric, angle: numeric,
+                 r: numeric = None) -> None:
         """
         :param m: Mass [kg]
         :param v0: Initial velocity [m/s]
         :param angle: Launch angle [deg]
-        :param c_d: Drag coefficient [-]
         :param r: Radius [m]
         """
         self.m = m
         self.v0 = v0
         self.angle = np.deg2rad(angle)
-        self.c_d = c_d
+        self.size = 2 * r
         self.area = self._area(r)
 
     def _area(self, r: numeric) -> numeric:
