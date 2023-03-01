@@ -1,5 +1,7 @@
 """
 File containing objects for different projectiles
+
+Update: These are not used in the simulation at the time
 """
 
 import numpy as np

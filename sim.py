@@ -7,8 +7,6 @@ import constants
 import numpy as np
 import matplotlib.pyplot as plt
 
-from projectiles import ProjectileData, Sphere
-
 # For typing
 numeric = int | float
 
@@ -28,7 +26,7 @@ def _rho(pres: numeric, temp: numeric) -> numeric:
 def _f2k(temp: numeric) -> numeric:
     """
     Converts Fahrenheits to Kelvin
-    :param temp:
+    :param temp: Air temperature [K]
     :return:
     """
     return (temp + 459.67) * 5 / 9
@@ -63,8 +61,8 @@ def _visc(rho: numeric, temp: numeric) -> numeric:
     Calculates the dynamic viscosity of air as a function of density and
     temperature using the correlation found in Journal of Physical and Chemical
     Reference Data 14, 947 (1985).
-    :param rho:
-    :param temp:
+    :param rho: Air density [kg/m^3]
+    :param temp: [K]
     :return:
     """
     temp /= constants.t_star
@@ -98,28 +96,28 @@ def _vec_len(v: np.ndarray) -> numeric:
     return np.sqrt(np.dot(v, v))
 
 
-def _reynolds(proj: ProjectileData, rho: numeric, temp: numeric,
+def _reynolds(size: numeric, rho: numeric, temp: numeric,
               vel: np.ndarray) -> numeric:
     """
     Calculates the Reynolds number of the flow around a sphere
-    :param proj:
-    :param rho:
-    :param temp:
-    :param vel:
+    :param size: The characteristic size of the project (for a sphere this
+    is usually the diameter) [m]
+    :param rho: Air density [kg/m^3]
+    :param temp: Air temperature [K]
+    :param vel: Velocity of the projectile [m/s]
     :return:
     """
     visc = _visc(rho=rho, temp=temp)
-    d = proj.size
     vmag = _vec_len(vel)
-    return rho * vmag * d / visc
+    return rho * vmag * size / visc
 
 
 def _g_acc(h: numeric) -> np.ndarray:
     """
     Calculates the acceleration due to gravital attraction
     between the Earth and the projectile
-    :param h: Height of the projectile related to Earth's surface
-    :return: Acceleration due to gravity as a vector
+    :param h: Height of the projectile related to Earth's surface [m]
+    :return: Acceleration due to gravity as a vector [m/s^2]
     """
     if h == 0:
         return np.array([0, 0])
@@ -127,21 +125,22 @@ def _g_acc(h: numeric) -> np.ndarray:
     return np.array([0, -constants.big_g * constants.m_e / (r * r)])
 
 
-def _cd_sphere(proj: Sphere, rho: numeric, temp: numeric, vel: np.ndarray) -> numeric:
+def _cd_sphere(size: numeric, rho: numeric, temp: numeric, vel: np.ndarray) -> numeric:
     """
     Calculates the drag coefficient for a sphere using the correlation in
     Morrison (2016)
     (https://pages.mtu.edu/~fmorriso/DataCorrelationForSphereDrag2016.pdf)
     It is not recommended to use the correlation for cases when Re > 1e6, but
     we shall ignore it for now
-    :param proj:
-    :param rho:
-    :param temp:
-    :param vel:
+    :param size: The characteristic size of the project (for a sphere this
+    is usually the diameter) [m]
+    :param rho: Air density [kg/m^3]
+    :param temp: Air temperature [K]
+    :param vel: Velocity of the projectile [m/s]
     :return:
     """
     # Determine the Reynolds number
-    re = _reynolds(proj=proj, rho=rho, temp=temp, vel=vel)
+    re = _reynolds(size=size, rho=rho, temp=temp, vel=vel)
 
     # Let's define the correlation term by term
     term1 = 24 / re
@@ -154,25 +153,27 @@ def _cd_sphere(proj: Sphere, rho: numeric, temp: numeric, vel: np.ndarray) -> nu
     return term1 + term2 + term3 + term4
 
 
-def _drag_acc(proj: ProjectileData, rho: numeric, temp: numeric,
+def _drag_acc(m: numeric, size: numeric, area: numeric, rho: numeric, temp: numeric,
               vel: np.ndarray) -> np.ndarray:
     """
     Calculates the acceleration due to air resistance
-    :param rho: Density of air
-    :param temp: Temperature of the air
-    :param vel: Velocity of the projectile as a vector
-    :return: Acceleration due to drag as a vector
+    :param m: Mass of the projectile [kg]
+    :param size: The characteristic size of the project (for a sphere this
+    is usually the diameter) [m]
+    :param area: Cross sectional (or projected) area of the projectile [m^2]
+    :param rho: Density of air [kg/m^3]
+    :param temp: Temperature of the air [K]
+    :param vel: Velocity of the projectile as a vector [m/s]
+    :return: Acceleration due to drag as a vector [m/s^2]
     """
-    if not isinstance(proj, Sphere):
-        raise ValueError('Projectile must be of type Sphere')
-    c_d = _cd_sphere(proj=proj, rho=rho, temp=temp, vel=vel)
-    return -0.5 * c_d * rho * (vel * vel) * proj.area / proj.m
+    c_d = _cd_sphere(size=size, rho=rho, temp=temp, vel=vel)
+    return -0.5 * c_d * rho * (vel * vel) * area / m
 
 
 def _simple_sim(v0: np.ndarray, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile without air resistance
-    :param v0: Magnitude of the initial velocity
+    :param v0: Initial velocity of the projectile
     :param dt: Timestep
     :return: Array of x- and y-coordinates
     """
@@ -191,19 +192,25 @@ def _simple_sim(v0: np.ndarray, dt: numeric) -> np.ndarray:
     return sol
 
 
-def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
+def simulate(m: numeric, v0: np.ndarray, dt: numeric, size: numeric = None,
+             area: numeric = None) -> np.ndarray:
     """
     Calculates the trajectory of the projectile with air resistance, if
     all necessary parameters are provided with the ProjectileData object.
     Otherwise air resistance is neglected. The simulation is continued until
     the projectile hits the ground.
-    :param proj: A ProjectileData-object
-    :param dt: Timestep
-    :return: Array of x- and y-coordinates
+    :param m: Mass of the projectile [kg]
+    :param v0: Inital velocity of the projectile [m/s]
+    :param dt: Timestep [s]
+    :param size: Size of the projectile (for a sphere the diameter) [m]
+    :param area: Cross sectional (or projected) area of the projectile [m^2]
+    :return: Array of x- and y-coordinates [m]
     """
-    if None in (proj.size, proj.area):
-        return _simple_sim(v0=proj.v0, dt=dt)
-    vel = proj.v0
+    # If the necessary parameters to calculate drag aren't provided, let's
+    # ignore it
+    if None in (size, area):
+        return _simple_sim(v0=v0, dt=dt)
+    vel = v0
     pos = np.zeros(shape=(2, ))
     sol = np.zeros(shape=(1, 2))
     sol[0] = pos
@@ -211,7 +218,7 @@ def simulate(proj: ProjectileData, dt: numeric) -> np.ndarray:
         acc = np.zeros(shape=(2, ))
         acc += _g_acc(pos[1])
         temp, rho = _density_and_temp(pos[1])
-        acc += _drag_acc(proj=proj, rho=rho, temp=temp, vel=vel)
+        acc += _drag_acc(m=m, size=size, area=area, rho=rho, temp=temp, vel=vel)
         vel += acc * dt
         pos += vel * dt
         sol = np.vstack((sol, pos))
@@ -243,12 +250,13 @@ def main():
     # Taken from https://en.wikipedia.org/wiki/8.8_cm_Flak_18/36/37/41
     m_p = 9.2  # Mass of the projectile [kg]
     v0_mag = 840  # Magnitude of the velocity of the projectile [m/s]
+    r = 0.088  # Radius [m]
     alpha = 30  # Launch angle [deg]
     v0 = np.array([np.cos(np.deg2rad(alpha)), np.sin(np.deg2rad(alpha))]) * v0_mag
-    r = 0.088  # Radius [m]
     dt = 0.001  # Timestep [s]
-    ball = Sphere(m=m_p, v0=v0, r=r)
-    coords = simulate(proj=ball, dt=dt)
+    size = 2 * r
+    area = np.pi * r * r
+    coords = simulate(m=m_p, v0=v0, dt=dt, size=size, area=area)
     display_results(coords=coords, dt=dt)
 
 
