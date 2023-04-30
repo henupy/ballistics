@@ -170,15 +170,16 @@ def _drag_acc(m: numeric, size: numeric, area: numeric, rho: numeric, temp: nume
     return -0.5 * c_d * rho * (vel * vel) * area / m
 
 
-def _simple_sim(v0: np.ndarray, dt: numeric) -> np.ndarray:
+def _simple_sim(p0: np.ndarray, v0: np.ndarray, dt: numeric) -> np.ndarray:
     """
     Calculates the trajectory of the projectile without air resistance
-    :param v0: Initial velocity of the projectile
-    :param dt: Timestep
+    :param p0: Initial position of the projectile [m]
+    :param v0: Initial velocity of the projectile [m/s]
+    :param dt: Timestep [s]
     :return: Array of x- and y-coordinates
     """
+    pos = p0
     vel = v0
-    pos = np.zeros(shape=(2, ))
     sol = np.zeros(shape=(1, 2))
     sol[0] = pos
     while True:
@@ -192,14 +193,15 @@ def _simple_sim(v0: np.ndarray, dt: numeric) -> np.ndarray:
     return sol
 
 
-def simulate(m: numeric, v0: np.ndarray, dt: numeric, size: numeric = None,
-             area: numeric = None) -> np.ndarray:
+def simulate(m: numeric, p0: np.ndarray, v0: np.ndarray, dt: numeric,
+             size: numeric = None, area: numeric = None) -> np.ndarray:
     """
     Calculates the trajectory of the projectile with air resistance, if
     all necessary parameters are provided with the ProjectileData object.
     Otherwise air resistance is neglected. The simulation is continued until
     the projectile hits the ground.
     :param m: Mass of the projectile [kg]
+    :param p0: Initial position of the projectile [m/s]
     :param v0: Inital velocity of the projectile [m/s]
     :param dt: Timestep [s]
     :param size: Size of the projectile (for a sphere the diameter) [m]
@@ -209,9 +211,9 @@ def simulate(m: numeric, v0: np.ndarray, dt: numeric, size: numeric = None,
     # If the necessary parameters to calculate drag aren't provided, let's
     # ignore it
     if None in (size, area):
-        return _simple_sim(v0=v0, dt=dt)
+        return _simple_sim(p0=p0, v0=v0, dt=dt)
+    pos = p0
     vel = v0
-    pos = np.zeros(shape=(2, ))
     sol = np.zeros(shape=(1, 2))
     sol[0] = pos
     while True:
@@ -252,11 +254,12 @@ def main():
     v0_mag = 840  # Magnitude of the velocity of the projectile [m/s]
     r = 0.088  # Radius [m]
     alpha = 30  # Launch angle [deg]
+    p0 = np.array([0, 1000], dtype=float)  # Initial position [m]
     v0 = np.array([np.cos(np.deg2rad(alpha)), np.sin(np.deg2rad(alpha))]) * v0_mag
     dt = 0.001  # Timestep [s]
-    size = 2 * r
-    area = np.pi * r * r
-    coords = simulate(m=m_p, v0=v0, dt=dt, size=size, area=area)
+    size = 2 * r  # Characteristic size of the projectile [m]
+    area = np.pi * r * r  # Cross sectional area of the projectile [m^2]
+    coords = simulate(m=m_p, p0=p0, v0=v0, dt=dt, size=size, area=area)
     display_results(coords=coords, dt=dt)
 
 
