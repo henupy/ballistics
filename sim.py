@@ -101,7 +101,7 @@ def _reynolds(size: numeric, rho: numeric, temp: numeric,
     """
     Calculates the Reynolds number of the flow around a sphere
     :param size: The characteristic size of the project (for a sphere this
-    is usually the diameter) [m]
+        is usually the diameter) [m]
     :param rho: Air density [kg/m^3]
     :param temp: Air temperature [K]
     :param vel: Velocity of the projectile [m/s]
@@ -133,7 +133,7 @@ def _cd_sphere(size: numeric, rho: numeric, temp: numeric, vel: np.ndarray) -> n
     It is not recommended to use the correlation for cases when Re > 1e6, but
     we shall ignore it for now
     :param size: The characteristic size of the project (for a sphere this
-    is usually the diameter) [m]
+        is usually the diameter) [m]
     :param rho: Air density [kg/m^3]
     :param temp: Air temperature [K]
     :param vel: Velocity of the projectile [m/s]
@@ -159,7 +159,7 @@ def _drag_acc(m: numeric, size: numeric, area: numeric, rho: numeric, temp: nume
     Calculates the acceleration due to air resistance
     :param m: Mass of the projectile [kg]
     :param size: The characteristic size of the project (for a sphere this
-    is usually the diameter) [m]
+        is usually the diameter) [m]
     :param area: Cross sectional (or projected) area of the projectile [m^2]
     :param rho: Density of air [kg/m^3]
     :param temp: Temperature of the air [K]
