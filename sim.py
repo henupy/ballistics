@@ -1,17 +1,22 @@
 """
-Some shiet regarding ballistic trajectories. At this moment, the projectile
-is assumed to be launched from the surface of the Earth.
+Some shiet regarding ballistic trajectories. The simulation tries to be a bit more
+realistic by modelling the variation of the density of the earth's atmosphere as a
+function of altitude and the variation of the drag coefficient of the projectiles
+(of different shapes), which varies as a function of the Reynolds number.
 """
 
 import constants
 import numpy as np
 import matplotlib.pyplot as plt
 
-# For typing
-numeric = int | float
+from solvers import rk4
+from typing import Callable
+from projectiledata import ProjectileData
+from projectiles import Cube, Sphere, SimObject
+from drag_correlations import HolzerSommerfeld, HaiderLevenspiel
 
 
-def _rho(pres: numeric, temp: numeric) -> numeric:
+def _rho(pres: int | float, temp: int | float) -> int | float:
     """
     Calculates air density from air pressure and temperature according to the
     Nasa Earth Atmosphere Model
@@ -23,7 +28,7 @@ def _rho(pres: numeric, temp: numeric) -> numeric:
     return pres / (1718 * (temp + 459.7))
 
 
-def _f2k(temp: numeric) -> numeric:
+def _f2k(temp: int | float) -> int | float:
     """
     Converts Fahrenheits to Kelvin
     :param temp: Air temperature [K]
@@ -32,31 +37,31 @@ def _f2k(temp: numeric) -> numeric:
     return (temp + 459.67) * 5 / 9
 
 
-def _density_and_temp(y: numeric) -> tuple[numeric, numeric]:
+def _density_and_temp(h: int | float) -> tuple[int | float, int | float]:
     """
     Returns the air density and temperature at the given height using Nasa's
     Earth Atmosphere Model (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html).
     This works when y < 82345 feet (~25099 meters).
-    :param y: Height of the projectile [m]
+    :param h: Height of the projectile [m]
     :return:
     """
     # Convert the height from meters to feet
-    y /= 0.3048
-    if y < 36152:
-        temp = 59 - .00356 * y
+    h /= 0.3048
+    if h < 36152:
+        temp = 59 - .00356 * h
         pres = 2116 * np.power((temp + 459.7) / 518.6, 5.256)
         rho = _rho(pres=pres, temp=temp)
-    elif 36152 < y < 82345:
+    elif 36152 < h < 82345:
         temp = -70
-        pres = 473.1 * np.exp(1.73 - .000048 * y)
+        pres = 473.1 * np.exp(1.73 - .000048 * h)
         rho = _rho(pres=pres, temp=temp)
     else:
-        raise ValueError('Height is too large')
+        raise ValueError("Height is too large")
     # Convert the density to metric units [kg/m^3]
     return _f2k(temp), rho * 515.3788184
 
 
-def _visc(rho: numeric, temp: numeric) -> numeric:
+def _visc(rho: int | float, temp: int | float) -> int | float:
     """
     Calculates the dynamic viscosity of air as a function of density and
     temperature using the correlation found in Journal of Physical and Chemical
@@ -67,27 +72,24 @@ def _visc(rho: numeric, temp: numeric) -> numeric:
     """
     temp /= constants.t_star
     rho /= constants.rho_star
-
     # Calculate the excess viscosity
     bb = [constants.b_1, constants.b_2, constants.b_3, constants.b_4]
     v_excess = 0
     for i, b in enumerate(bb):
         v_excess += b * np.power(rho, i + 1)
-
-    # Calculate the sum term for the 'temperature viscosity'
-    aa = [constants.a_0, constants.a__1, constants.a__2, constants.a__3, constants.a__4]
+    # Calculate the sum term for the "temperature viscosity"
+    aa = [constants.a_0, constants.a__1, constants.a__2, constants.a__3,
+          constants.a__4]
     sum_term = 0
     for i, a in enumerate(aa):
         sum_term += a * np.power(temp, -i)
-
-    # Calculate the full 'temperature viscosity'
+    # Calculate the full "temperature viscosity"
     v_temp = constants.a_1 * temp + constants.a_05 * np.power(temp, 0.5) + sum_term
-
     # Return the total viscosity
     return constants.h * (v_temp + v_excess)
 
 
-def _vec_len(v: np.ndarray) -> numeric:
+def vec_len(v: np.ndarray) -> int | float:
     """
     Length of a vector
     :param v:
@@ -96,8 +98,8 @@ def _vec_len(v: np.ndarray) -> numeric:
     return np.sqrt(np.dot(v, v))
 
 
-def _reynolds(size: numeric, rho: numeric, temp: numeric,
-              vel: np.ndarray) -> numeric:
+def _reynolds(size: int | float, rho: int | float, temp: int | float,
+              vel: np.ndarray) -> int | float:
     """
     Calculates the Reynolds number of the flow around a sphere
     :param size: The characteristic size of the project (for a sphere this
@@ -108,160 +110,192 @@ def _reynolds(size: numeric, rho: numeric, temp: numeric,
     :return:
     """
     visc = _visc(rho=rho, temp=temp)
-    vmag = _vec_len(vel)
+    vmag = vec_len(vel)
     return rho * vmag * size / visc
 
 
-def _g_acc(h: numeric) -> np.ndarray:
+def _grav_force(m: int | float, h: int | float) -> np.ndarray:
     """
     Calculates the acceleration due to gravital attraction
     between the Earth and the projectile
+    :param m:
     :param h: Height of the projectile related to Earth's surface [m]
     :return: Acceleration due to gravity as a vector [m/s^2]
     """
-    if h == 0:
-        return np.array([0, 0])
     r = constants.r_e + h
-    return np.array([0, -constants.big_g * constants.m_e / (r * r)])
+    return np.array([0, -constants.big_g * constants.m_e * m / (r * r)])
 
 
-def _cd_sphere(size: numeric, rho: numeric, temp: numeric, vel: np.ndarray) -> numeric:
+def _diff_eq(y0: np.ndarray, t: int | float, rho: int | float, area: int | float,
+             g_f: int | float, c_d: int | float, m: int | float) -> np.ndarray:
     """
-    Calculates the drag coefficient for a sphere using the correlation in
-    Morrison (2016)
-    (https://pages.mtu.edu/~fmorriso/DataCorrelationForSphereDrag2016.pdf)
-    It is not recommended to use the correlation for cases when Re > 1e6, but
-    we shall ignore it for now
-    :param size: The characteristic size of the project (for a sphere this
-        is usually the diameter) [m]
-    :param rho: Air density [kg/m^3]
-    :param temp: Air temperature [K]
-    :param vel: Velocity of the projectile [m/s]
+    Differential equation for an object following ballistic trajectory
+    :param y0:
+    :param t:
+    :param
     :return:
     """
-    # Determine the Reynolds number
-    re = _reynolds(size=size, rho=rho, temp=temp, vel=vel)
-
-    # Let's define the correlation term by term
-    term1 = 24 / re
-    re1 = re / 5
-    term2 = 2.6 * re1 / (1 + np.power(re1, 1.52))
-    re2 = re / 2.63e5
-    term3 = 0.411 * np.power(re2, -7.94) / (1 + np.power(re2, -8))
-    re3 = re / 1e6
-    term4 = .25 * re3 / (1 + re3)
-    return term1 + term2 + term3 + term4
+    _ = t  # Unused variable, this suppresses the warning
+    x, v = y0
+    v_len = vec_len(v)
+    k = .5 * rho * area * c_d
+    dydt = [v, (-k * v_len * v + g_f) / m]
+    return np.array(dydt)
 
 
-def _drag_acc(m: numeric, size: numeric, area: numeric, rho: numeric, temp: numeric,
-              vel: np.ndarray) -> np.ndarray:
+def _solve_path(obj: SimObject, solver: Callable, dt: float,
+                max_steps: int | float) -> ProjectileData:
     """
-    Calculates the acceleration due to air resistance
-    :param m: Mass of the projectile [kg]
-    :param size: The characteristic size of the project (for a sphere this
-        is usually the diameter) [m]
-    :param area: Cross sectional (or projected) area of the projectile [m^2]
-    :param rho: Density of air [kg/m^3]
-    :param temp: Temperature of the air [K]
-    :param vel: Velocity of the projectile as a vector [m/s]
-    :return: Acceleration due to drag as a vector [m/s^2]
+    :return:
     """
-    c_d = _cd_sphere(size=size, rho=rho, temp=temp, vel=vel)
-    return -0.5 * c_d * rho * (vel * vel) * area / m
-
-
-def _simple_sim(p0: np.ndarray, v0: np.ndarray, dt: numeric) -> np.ndarray:
-    """
-    Calculates the trajectory of the projectile without air resistance
-    :param p0: Initial position of the projectile [m]
-    :param v0: Initial velocity of the projectile [m/s]
-    :param dt: Timestep [s]
-    :return: Array of x- and y-coordinates
-    """
-    pos = p0
-    vel = v0
-    sol = np.zeros(shape=(1, 2))
-    sol[0] = pos
-    while True:
-        acc = _g_acc(pos[1])
-        vel += acc * dt
-        pos += vel * dt
-        sol = np.vstack((sol, pos))
-        if pos[1] < 0:
+    proj = obj.proj
+    pos = np.zeros(shape=(1, 2))
+    vel = np.zeros(shape=(1, 2))
+    pos[0] = proj.p0
+    vel[0] = proj.v0
+    cd = []
+    rey = []
+    n = 0
+    while n <= max_steps:
+        g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))  # To suppress warning
+        temp, rho = _density_and_temp(h=float(pos[n, 1]))
+        re = _reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
+        rey.append(re)
+        c_d = obj.drag_corr.eval(re=re)
+        cd.append(c_d)
+        t = dt * (n + 1)
+        n_pos, n_vel = solver(diff_eq=_diff_eq, y0=np.vstack((pos[n], vel[n])), t=t,
+                              dt=dt, rho=rho, area=proj.proj_area, c_d=c_d, g_f=g_f,
+                              m=proj.m)
+        pos = np.vstack((pos, n_pos))
+        vel = np.vstack((vel, n_vel))
+        n += 1
+        if pos[n, 1] <= 0:
             break
 
-    return sol
+    if n >= max_steps:
+        print(f"INFO: Maximum amount of iterations reached for "
+              f"projectile {obj.proj}.")
+    return ProjectileData(proj=obj.proj, coords=pos, vel=vel, cd=np.array(cd),
+                          rey=np.array(rey), dt=dt)
 
 
-def simulate(m: numeric, p0: np.ndarray, v0: np.ndarray, dt: numeric,
-             size: numeric = None, area: numeric = None) -> np.ndarray:
+def simulate(*args: SimObject, solver: Callable, dt: int | float,
+             max_steps: int = 1e5) -> list[ProjectileData]:
     """
     Calculates the trajectory of the projectile with air resistance, if
     all necessary parameters are provided with the ProjectileData object.
     Otherwise air resistance is neglected. The simulation is continued until
-    the projectile hits the ground.
-    :param m: Mass of the projectile [kg]
-    :param p0: Initial position of the projectile [m/s]
-    :param v0: Inital velocity of the projectile [m/s]
+    the projectile hits the ground or the max_steps amount of timesteps are
+    simulated.
+    :param args:
+    :param solver:
     :param dt: Timestep [s]
-    :param size: Size of the projectile (for a sphere the diameter) [m]
-    :param area: Cross sectional (or projected) area of the projectile [m^2]
+    :param max_steps: A hard limit to the number of timesteps to simulate so that
+    the simulation does not run too long
     :return: Array of x- and y-coordinates [m]
     """
-    # If the necessary parameters to calculate drag aren't provided, let's
-    # ignore it
-    if None in (size, area):
-        return _simple_sim(p0=p0, v0=v0, dt=dt)
-    pos = p0
-    vel = v0
-    sol = np.zeros(shape=(1, 2))
-    sol[0] = pos
-    while True:
-        acc = np.zeros(shape=(2, ))
-        acc += _g_acc(pos[1])
-        temp, rho = _density_and_temp(pos[1])
-        acc += _drag_acc(m=m, size=size, area=area, rho=rho, temp=temp, vel=vel)
-        vel += acc * dt
-        pos += vel * dt
-        sol = np.vstack((sol, pos))
-        if pos[1] < 0:
-            break
-
-    return sol
+    data_objs = []
+    for obj in args:
+        data_obj = _solve_path(obj=obj, solver=solver, dt=dt, max_steps=max_steps)
+        data_objs.append(data_obj)
+    return data_objs
 
 
-def display_results(coords: np.ndarray, dt: numeric) -> None:
+def display_results(*args: ProjectileData) -> None:
     """
     Prints out and plots some key characteristics of the trajectory
-    :param coords:
-    :param dt:
+    :param args:
     :return:
     """
-    x, y = coords[:, 0], coords[:, 1]
-    print('Flight data:')
-    print(f'Total distance (in x-direction): {np.max(x):.3f} m')
-    print(f'Highest point: {np.max(y):.3f} m')
-    print(f'Flight time: {x.shape[0] * dt:.3f} s')
-    plt.plot(coords[:, 0], coords[:, 1])
-    plt.grid()
+    fig1, ax1 = plt.subplots()
+    fig2, ax2 = plt.subplots()
+    fig3, ax3 = plt.subplots()
+    fig4, ax4 = plt.subplots()
+    for data_obj in args:
+        tspan = np.linspace(0, data_obj.time, int(data_obj.time / data_obj.dt))
+        print(f"Flight data for {data_obj.proj}:")
+        print(f"Total distance (in x-direction): {data_obj.x_dist:.3f} m")
+        print(f"Highest point: {data_obj.y_max:.3f} m")
+        print(f"Flight time: {data_obj.time:.3f} s")
+        print()
+        plt.figure(fig1)
+        plt.plot(data_obj.coords[:, 0], data_obj.coords[:, 1],
+                 label=f"{data_obj.proj}")
+        plt.figure(fig2)
+        plt.plot(tspan, data_obj.vel[:, 0], label=f"X velocity, {data_obj.proj}")
+        plt.plot(tspan, data_obj.vel[:, 1], label=f"Y velocity, {data_obj.proj}")
+        plt.figure(fig3)
+        plt.plot(tspan[1:], data_obj.c_d, label=f"{data_obj.proj}")
+        plt.figure(fig4)
+        plt.plot(tspan[1:], data_obj.re, label=f"{data_obj.proj}")
+
+    ax1.set_title("Flight path")
+    ax1.set_xlabel("x [m]")
+    ax1.set_ylabel("y [m]")
+    ax1.legend()
+    ax1.grid()
+
+    ax2.set_title("Velocities as a function of time")
+    ax2.set_xlabel("Time [s]")
+    ax2.set_ylabel("Speed [m/s]")
+    ax2.legend()
+    ax2.grid()
+
+    ax3.set_title("Drag coefficient as a function of time")
+    ax3.set_xlabel("Time [s]")
+    ax3.set_ylabel("Drag coefficient [-]")
+    ax3.legend()
+    ax3.grid()
+
+    ax4.set_title("Reynolds number as a function of time")
+    ax4.set_xlabel("Time [s]")
+    ax4.set_ylabel("Reynolds number [-]")
+    ax4.legend()
+    ax4.grid()
+
     plt.show()
 
 
-def main():
-    # These values are for the Flak 88 anti-aircraft/anti-tank artillery
-    # Taken from https://en.wikipedia.org/wiki/8.8_cm_Flak_18/36/37/41
-    m_p = 9.2  # Mass of the projectile [kg]
-    v0_mag = 840  # Magnitude of the velocity of the projectile [m/s]
-    r = 0.088  # Radius [m]
-    alpha = 30  # Launch angle [deg]
-    p0 = np.array([0, 1000], dtype=float)  # Initial position [m]
-    v0 = np.array([np.cos(np.deg2rad(alpha)), np.sin(np.deg2rad(alpha))]) * v0_mag
-    dt = 0.001  # Timestep [s]
-    size = 2 * r  # Characteristic size of the projectile [m]
-    area = np.pi * r * r  # Cross sectional area of the projectile [m^2]
-    coords = simulate(m=m_p, p0=p0, v0=v0, dt=dt, size=size, area=area)
-    display_results(coords=coords, dt=dt)
+def speed2velocity(v0: int | float, angle: int | float) -> np.ndarray:
+    """
+    Creates a velocity vector from the given speed and launch angle
+    :param v0:
+    :param angle:
+    :return:
+    """
+    angle = np.deg2rad(angle)
+    return np.array([np.cos(angle), np.sin(angle)]) * v0
 
 
-if __name__ == '__main__':
+def main() -> None:
+    # Define some initial values
+    m = 3.7  # Mass of the projectiles [kg]
+    r = .057 / 2  # Radius of the sphere [m]
+    # d = 2  # Length of the side of the cube [m]
+    angle = 45  # Launch angle of the projectiles [deg]
+    v0_mag = 1035  # Initial speed of the projectiles [m/s]
+    # Initial positions [m]
+    p0_1 = np.array([0, 0], dtype=np.float64)
+    p0_2 = np.array([0, 0], dtype=np.float64)
+    # Initial velocities
+    v0_1 = speed2velocity(v0=v0_mag, angle=angle)
+    v0_2 = speed2velocity(v0=v0_mag, angle=angle)
+    dt = .01  # Timestep [s]
+
+    # Create some projectiles and stuff
+    cube = Sphere(m=m, p0=p0_1, v0=v0_1, r=r, name="Sphere 1")
+    ball = Sphere(m=m, p0=p0_2, v0=v0_2, r=r, name="Sphere 2")
+    cube_corr = HaiderLevenspiel(proj=cube)
+    ball_corr = HolzerSommerfeld(proj=ball)
+    cube_obj = SimObject(proj=cube, drag_corr=cube_corr)
+    ball_obj = SimObject(proj=ball, drag_corr=ball_corr)
+
+    # Simulate
+    solver = rk4
+    cube_data, ball_data = simulate(cube_obj, ball_obj, solver=solver, dt=dt)
+    display_results(cube_data, ball_data)
+
+
+if __name__ == "__main__":
     main()
