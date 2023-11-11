@@ -212,6 +212,7 @@ def display_results(*args: ProjectileData) -> None:
     fig2, ax2 = plt.subplots()
     fig3, ax3 = plt.subplots()
     fig4, ax4 = plt.subplots()
+    fig5, ax5 = plt.subplots()
     for data_obj in args:
         tspan = np.linspace(0, data_obj.time, int(data_obj.time / data_obj.dt))
         print(f"Flight data for {data_obj.proj}:")
@@ -225,10 +226,13 @@ def display_results(*args: ProjectileData) -> None:
         plt.figure(fig2)
         plt.plot(tspan, data_obj.vel[:, 0], label=f"X velocity, {data_obj.proj}")
         plt.plot(tspan, data_obj.vel[:, 1], label=f"Y velocity, {data_obj.proj}")
+        plt.plot(tspan, data_obj.speed, label=f"Total velocity, {data_obj.proj}")
         plt.figure(fig3)
         plt.plot(tspan[1:], data_obj.c_d, label=f"{data_obj.proj}")
         plt.figure(fig4)
         plt.plot(tspan[1:], data_obj.re, label=f"{data_obj.proj}")
+        plt.figure(fig5)
+        plt.plot(tspan, data_obj.ke, label=f"{data_obj.proj}")
 
     ax1.set_title("Flight path")
     ax1.set_xlabel("x [m]")
@@ -236,7 +240,7 @@ def display_results(*args: ProjectileData) -> None:
     ax1.legend()
     ax1.grid()
 
-    ax2.set_title("Velocities as a function of time")
+    ax2.set_title("Velocities and speed as a function of time")
     ax2.set_xlabel("Time [s]")
     ax2.set_ylabel("Speed [m/s]")
     ax2.legend()
@@ -253,6 +257,12 @@ def display_results(*args: ProjectileData) -> None:
     ax4.set_ylabel("Reynolds number [-]")
     ax4.legend()
     ax4.grid()
+
+    ax5.set_title("Kinetic energy as a function of time")
+    ax5.set_xlabel("Time [s]")
+    ax5.set_ylabel("Kinetic energy [J]")
+    ax5.legend()
+    ax5.grid()
 
     plt.show()
 
