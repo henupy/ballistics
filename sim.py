@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from solvers import rk4
 from typing import Callable
 from projectiledata import ProjectileData
-from projectiles import Cube, Sphere, SimObject
+from projectiles import Shell, Sphere, SimObject
 from drag_correlations import HolzerSommerfeld, HaiderLevenspiel
 
 
@@ -280,11 +280,12 @@ def speed2velocity(v0: int | float, angle: int | float) -> np.ndarray:
 
 def main() -> None:
     # Define some initial values
-    m = 3.7  # Mass of the projectiles [kg]
-    r = .057 / 2  # Radius of the sphere [m]
-    # d = 2  # Length of the side of the cube [m]
+    m = 9.4  # Mass of the projectiles [kg]
+    d = .088  # Diameter of the shell [m]
+    len1 = .395 / 1.5  # Length of the cylindrical part of the shell [m]
+    len2 = .395 - len1  # Length of the curved part of the shell [m]
     angle = 45  # Launch angle of the projectiles [deg]
-    v0_mag = 1035  # Initial speed of the projectiles [m/s]
+    v0_mag = 840  # Initial speed of the projectiles [m/s]
     # Initial positions [m]
     p0_1 = np.array([0, 0], dtype=np.float64)
     p0_2 = np.array([0, 0], dtype=np.float64)
@@ -294,17 +295,17 @@ def main() -> None:
     dt = .01  # Timestep [s]
 
     # Create some projectiles and stuff
-    cube = Sphere(m=m, p0=p0_1, v0=v0_1, r=r, name="Sphere 1")
-    ball = Sphere(m=m, p0=p0_2, v0=v0_2, r=r, name="Sphere 2")
-    cube_corr = HaiderLevenspiel(proj=cube)
+    shell = Shell(m=m, p0=p0_1, v0=v0_1, d=d, name="Shell")
+    ball = Sphere(m=m, p0=p0_2, v0=v0_2, r=d / 2, name="Sphere")
+    shell_corr = HolzerSommerfeld(proj=shell)
     ball_corr = HolzerSommerfeld(proj=ball)
-    cube_obj = SimObject(proj=cube, drag_corr=cube_corr)
+    shell_obj = SimObject(proj=shell, drag_corr=shell_corr)
     ball_obj = SimObject(proj=ball, drag_corr=ball_corr)
 
     # Simulate
     solver = rk4
-    cube_data, ball_data = simulate(cube_obj, ball_obj, solver=solver, dt=dt)
-    display_results(cube_data, ball_data)
+    shell_data, ball_data = simulate(shell_obj, ball_obj, solver=solver, dt=dt)
+    display_results(shell_data, ball_data)
 
 
 if __name__ == "__main__":
