@@ -13,7 +13,7 @@ from solvers import rk4
 from typing import Callable
 from projectiledata import ProjectileData
 from projectiles import Shell, Sphere, SimObject
-from drag_correlations import HolzerSommerfeld, HaiderLevenspiel
+from drag_correlations import HolzerSommerfeld
 
 
 def _rho(pres: int | float, temp: int | float) -> int | float:
@@ -143,8 +143,8 @@ def _diff_eq(y0: np.ndarray, t: int | float, rho: int | float, area: int | float
     return np.array(dydt)
 
 
-def _solve_path(obj: SimObject, solver: Callable, dt: float,
-                max_steps: int | float) -> ProjectileData:
+def _solve(obj: SimObject, solver: Callable, dt: float,
+           max_steps: int | float) -> ProjectileData:
     """
     :return:
     """
@@ -157,7 +157,7 @@ def _solve_path(obj: SimObject, solver: Callable, dt: float,
     rey = []
     n = 0
     while n <= max_steps:
-        g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))  # To suppress warning
+        g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
         temp, rho = _density_and_temp(h=float(pos[n, 1]))
         re = _reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
@@ -197,7 +197,7 @@ def simulate(*args: SimObject, solver: Callable, dt: int | float,
     """
     data_objs = []
     for obj in args:
-        data_obj = _solve_path(obj=obj, solver=solver, dt=dt, max_steps=max_steps)
+        data_obj = _solve(obj=obj, solver=solver, dt=dt, max_steps=max_steps)
         data_objs.append(data_obj)
     return data_objs
 
@@ -282,8 +282,6 @@ def main() -> None:
     # Define some initial values
     m = 9.4  # Mass of the projectiles [kg]
     d = .088  # Diameter of the shell [m]
-    len1 = .395 / 1.5  # Length of the cylindrical part of the shell [m]
-    len2 = .395 - len1  # Length of the curved part of the shell [m]
     angle = 45  # Launch angle of the projectiles [deg]
     v0_mag = 840  # Initial speed of the projectiles [m/s]
     # Initial positions [m]
