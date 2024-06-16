@@ -3,6 +3,9 @@ Some shiet regarding ballistic trajectories. The simulation tries to be a bit mo
 realistic by modelling the variation of the density of the earth's atmosphere as a
 function of altitude and the variation of the drag coefficient of the projectiles
 (of different shapes), which varies as a function of the Reynolds number.
+
+This simulation assumes that the projectile moves freely with some initial
+velocity, meaning that the projectile does not have any thrust.
 """
 
 import constants
@@ -208,6 +211,7 @@ def display_results(*args: ProjectileData) -> None:
     :param args:
     :return:
     """
+    # TODO: Some refactoring
     fig1, ax1 = plt.subplots()
     fig2, ax2 = plt.subplots()
     fig3, ax3 = plt.subplots()
@@ -308,3 +312,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
