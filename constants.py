@@ -2,10 +2,11 @@
 Some constants used in the simulations
 """
 
-# Used to calculate the gravitational acceleration
+# Used to calculate the gravitational acceleration and atmospheric data
 big_g = 6.67259e-11  # Gravitational constant [Nm^2/kg^2]
 r_e = 6378.14e3  # Radius of the Earth [m]
 m_e = 5.974e24  # Mass of the earth [kg]
+r_gas = 287.053  # Specific gas constant [J/kg*K]
 
 # Used in the correlation for the viscosity of air
 t_star = 132.5  # [K]
