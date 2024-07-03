@@ -90,30 +90,30 @@ def _lower_atmosphere(h: int | float) -> tuple[float, float, float]:
     a = 34.1632  # A constant used in multiple places
     if h < 11:
         t = 288.15 - 6.5 * h
-        p = 101325 * np.power((288.15 / (288.15 - 6.5 * h)), a / -6.5)
+        # p = 101325 * np.power((288.15 / (288.15 - 6.5 * h)), a / -6.5)
     elif 11 <= h < 20:
         t = 216.65
-        p = 22632.06 * np.exp(-a * (h - 11) / 216.65)
+        # p = 22632.06 * np.exp(-a * (h - 11) / 216.65)
     elif 20 <= h < 32:
         t = 196.65 + h
-        p = 5474.889 * np.power((216.65 / (216.65 + (h - 20))), a)
+        # p = 5474.889 * np.power((216.65 / (216.65 + (h - 20))), a)
     elif 32 <= h < 47:
         t = 139.05 + 2.8 * h
-        p = 868.0187 * np.power((228.85 / (228.65 + 2.8 * (h - 32))), a / 2.8)
+        # p = 868.0187 * np.power((228.85 / (228.65 + 2.8 * (h - 32))), a / 2.8)
     elif 47 <= h < 51:
         t = 270.65
-        p = 110.9063 * np.exp(-a * (h - 47) / 270.65)
+        # p = 110.9063 * np.exp(-a * (h - 47) / 270.65)
     elif 51 <= h < 71:
         t = 413.45 - 2.8 * h
-        p = 66.93887 * np.power((270.65 / 270.65 - 2.8 * (h - 51)), a / -2.8)
+        # p = 66.93887 * np.power((270.65 / 270.65 - 2.8 * (h - 51)), a / -2.8)
     elif 71 <= 84.852:
         t = 356.65 - 2 * h
-        p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
+        # p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
     else:
         raise ValueError("Invalid geopotential height {h}")
 
     rho = p / (r * t)
-    return t, p, rho
+    return t, 0, rho
 
 
 def _base_eq(h: int | float, a: int | float, b: int | float, c: int | float,
@@ -270,9 +270,9 @@ def get_atmos_data(h: int | float) -> tuple[float, float, float]:
     else:
         raise ValueError("Invalid height {h}")
 
-    p = _base_eq(h=h, a=pa, b=pb, c=pc, d=pd, e=pe)
+    # p = _base_eq(h=h, a=pa, b=pb, c=pc, d=pd, e=pe)
     rho = _base_eq(h=H, a=rhoa, b=rhob, c=rhoc, d=rhod, e=rhoe)
-    return t, p, rho
+    return t, 0, rho
 
 
 def _visc(rho: int | float, temp: int | float) -> int | float:
@@ -372,8 +372,8 @@ def _solve(obj: SimObject, solver: Callable, dt: float,
     n = 0
     while n <= max_steps:
         g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
-        temp, rho = _density_and_temp(h=float(pos[n, 1]))
-        # temp, _, rho = get_atmos_data(h=pos[n, 1])
+        # temp, rho = _density_and_temp(h=float(pos[n, 1]))
+        temp, _, rho = get_atmos_data(h=pos[n, 1])
         re = reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
         c_d = obj.drag_corr.eval(re=re)
