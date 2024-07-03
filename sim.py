@@ -19,51 +19,6 @@ from projectiles import Shell, Sphere, SimObject
 from drag_correlations import HolzerSommerfeld
 
 
-def _rho(pres: int | float, temp: int | float) -> int | float:
-    """
-    Calculates air density from air pressure and temperature according to the
-    Nasa Earth Atmosphere Model
-    (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html)
-    :param pres: Air pressure [lbs/sq ft]
-    :param temp: Air temperature [°F]
-    :return: Air density [slugs/cu ft]
-    """
-    return pres / (1718 * (temp + 459.7))
-
-
-def _f2k(temp: int | float) -> int | float:
-    """
-    Converts Fahrenheits to Kelvin
-    :param temp: Air temperature [K]
-    :return:
-    """
-    return (temp + 459.67) * 5 / 9
-
-
-def _density_and_temp(h: int | float) -> tuple[int | float, int | float]:
-    """
-    Returns the air density and temperature at the given height using Nasa's
-    Earth Atmosphere Model (https://www.grc.nasa.gov/www/k-12/rocket/atmos.html).
-    This works when y < 82345 feet (~25099 meters).
-    :param h: Height of the projectile [m]
-    :return:
-    """
-    # Convert the height from meters to feet
-    h /= 0.3048
-    if h < 36152:
-        temp = 59 - .00356 * h
-        pres = 2116 * np.power((temp + 459.7) / 518.6, 5.256)
-        rho = _rho(pres=pres, temp=temp)
-    elif 36152 < h < 82345:
-        temp = -70
-        pres = 473.1 * np.exp(1.73 - .000048 * h)
-        rho = _rho(pres=pres, temp=temp)
-    else:
-        raise ValueError("Height is too large")
-    # Convert the density to metric units [kg/m^3]
-    return _f2k(temp), rho * 515.3788184
-
-
 def _get_geopotential_height(h: int | float) -> int | float:
     """
     Converts the geometric height h to the geopotential height as it is defined
@@ -90,25 +45,25 @@ def _lower_atmosphere(h: int | float) -> tuple[float, float, float]:
     a = 34.1632  # A constant used in multiple places
     if h < 11:
         t = 288.15 - 6.5 * h
-        # p = 101325 * np.power((288.15 / (288.15 - 6.5 * h)), a / -6.5)
+        p = 101325 * np.power((288.15 / (288.15 - 6.5 * h)), a / -6.5)
     elif 11 <= h < 20:
         t = 216.65
-        # p = 22632.06 * np.exp(-a * (h - 11) / 216.65)
+        p = 22632.06 * np.exp(-a * (h - 11) / 216.65)
     elif 20 <= h < 32:
         t = 196.65 + h
-        # p = 5474.889 * np.power((216.65 / (216.65 + (h - 20))), a)
+        p = 5474.889 * np.power((216.65 / (216.65 + (h - 20))), a)
     elif 32 <= h < 47:
         t = 139.05 + 2.8 * h
-        # p = 868.0187 * np.power((228.85 / (228.65 + 2.8 * (h - 32))), a / 2.8)
+        p = 868.0187 * np.power((228.85 / (228.65 + 2.8 * (h - 32))), a / 2.8)
     elif 47 <= h < 51:
         t = 270.65
-        # p = 110.9063 * np.exp(-a * (h - 47) / 270.65)
+        p = 110.9063 * np.exp(-a * (h - 47) / 270.65)
     elif 51 <= h < 71:
         t = 413.45 - 2.8 * h
-        # p = 66.93887 * np.power((270.65 / 270.65 - 2.8 * (h - 51)), a / -2.8)
+        p = 66.93887 * np.power((270.65 / 270.65 - 2.8 * (h - 51)), a / -2.8)
     elif 71 <= 84.852:
         t = 356.65 - 2 * h
-        # p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
+        p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
     else:
         raise ValueError("Invalid geopotential height {h}")
 
@@ -372,7 +327,6 @@ def _solve(obj: SimObject, solver: Callable, dt: float,
     n = 0
     while n <= max_steps:
         g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
-        # temp, rho = _density_and_temp(h=float(pos[n, 1]))
         temp, _, rho = get_atmos_data(h=pos[n, 1])
         re = reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
