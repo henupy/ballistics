@@ -57,20 +57,34 @@ def _grav_force(m: int | float, h: int | float) -> np.ndarray:
     return np.array([0, -constants.big_g * constants.m_e * m / (r * r)])
 
 
-def _diff_eq(y0: np.ndarray, t: int | float, rho: int | float, area: int | float,
-             g_f: int | float, c_d: int | float, m: int | float) -> np.ndarray:
+def _drag_force(rho: int | float, area: int | float, c_d: int | float,
+                vel: np.ndarray) -> np.ndarray:
+    """
+    Calculates the drag force on the onject
+    :param rho: Air density [kg/m^3]
+    :param area: Cross sectional area of the projectile [m^2]
+    :param c_d: Drag coefficient [-]
+    :param vel: Velocity of the projectile as a vector [m/s]
+    :return: Drag force as a vector [N]
+    """
+    k = .5 * rho * area * c_d
+    return -k * vec_len(vel) * vel
+
+
+def _diff_eq(y0: np.ndarray, t: int | float, m: int | float, d_f: int | float,
+             g_f: int | float) -> np.ndarray:
     """
     Differential equation for an object following ballistic trajectory
-    :param y0:
-    :param t:
-    :param
+    :param y0: Initial conditions as a vector of vectors [position, velocity]
+    :param t: Time [s] (unused)
+    :param m: Mass of the projectile [kg]
+    :param d_f: Drag force affecting the projectile [N]
+    :param d_g: Gravitational force affecting the projectile [N]
     :return:
     """
     _ = t  # Unused variable, this suppresses the warning
     x, v = y0
-    v_len = vec_len(v)
-    k = .5 * rho * area * c_d
-    dydt = [v, (-k * v_len * v + g_f) / m]
+    dydt = [v, (d_f + g_f) / m]
     return np.array(dydt)
 
 
@@ -88,16 +102,16 @@ def _solve(obj: SimObject, solver: Callable, dt: float,
     rey = []
     n = 0
     while n <= max_steps:
-        g_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
+        grav_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
         temp, _, rho = atmos.get_atmos_data(h=pos[n, 1])
         re = reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
         c_d = obj.drag_corr.eval(re=re)
         cd.append(c_d)
+        drag_f = _drag_force(rho=rho, area=proj.proj_area, c_d=c_d, vel=vel[n])
         t = dt * (n + 1)
         n_pos, n_vel = solver(diff_eq=_diff_eq, y0=np.vstack((pos[n], vel[n])), t=t,
-                              dt=dt, rho=rho, area=proj.proj_area, c_d=c_d, g_f=g_f,
-                              m=proj.m)
+                              dt=dt, m=proj.m, d_f=drag_f, g_f=grav_f)
         pos = np.vstack((pos, n_pos))
         vel = np.vstack((vel, n_vel))
         n += 1
