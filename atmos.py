@@ -30,7 +30,7 @@ def _lower_atmosphere(h: int | float) -> tuple[float, float, float]:
     """
     Atmospheric data for the lower atmosphere (0 ... 86 km), see
     http://www.braeunig.us/space/atmmodel.htm
-    :param h: geopotential height [km]
+    :param h: Geometric height [km]
     :return: Temperature, pressure, density
     """
     # Convert height to geopotential height

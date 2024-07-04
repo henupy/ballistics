@@ -49,9 +49,9 @@ def _grav_force(m: int | float, h: int | float) -> np.ndarray:
     """
     Calculates the acceleration due to gravital attraction
     between the Earth and the projectile
-    :param m:
+    :param m: Mass of the projectile [kg]
     :param h: Height of the projectile related to Earth's surface [m]
-    :return: Acceleration due to gravity as a vector [m/s^2]
+    :return: Gravitational force as a vector [N]
     """
     r = constants.r_e + h
     return np.array([0, -constants.big_g * constants.m_e * m / (r * r)])
@@ -91,7 +91,11 @@ def _diff_eq(y0: np.ndarray, t: int | float, m: int | float, d_f: int | float,
 def _solve(obj: SimObject, solver: Callable, dt: float,
            max_steps: int | float) -> ProjectileData:
     """
-    :return:
+    :param obj: The SimObject of the projectile
+    :param solver: The solver used to solve the differential equation of motion
+    :param dt: Timestep size [s]
+    :param max_steps: Maximum amount of timesteps to take
+    :return: A ProjectileData object containing the simulation results
     """
     proj = obj.proj
     pos = np.zeros(shape=(1, 2))
@@ -133,12 +137,14 @@ def simulate(*args: SimObject, solver: Callable, dt: int | float,
     Otherwise air resistance is neglected. The simulation is continued until
     the projectile hits the ground or the max_steps amount of timesteps are
     simulated.
-    :param args:
-    :param solver:
+    :param args: Arbitrary amount of SimObjects to run the simulation for
+    :param solver: The solver function used to solve the differential equation
+    of motion
     :param dt: Timestep [s]
     :param max_steps: A hard limit to the number of timesteps to simulate so that
     the simulation does not run too long
-    :return: Array of x- and y-coordinates [m]
+    :return: List of ProjectileData objects containing the simulation results
+    for all given args
     """
     data_objs = []
     for obj in args:
