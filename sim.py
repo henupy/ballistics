@@ -16,8 +16,8 @@ import matplotlib.pyplot as plt
 from solvers import rk4
 from typing import Callable
 from projectiledata import ProjectileData
-from projectiles import Shell, Sphere, SimObject
-from drag_correlations import HolzerSommerfeld
+from projectiles import Projectile, Shell, Sphere
+from drag_correlations import HaiderLevenspiel, HolzerSommerfeld
 
 
 def vec_len(v: np.ndarray) -> int | float:
@@ -88,16 +88,15 @@ def _diff_eq(y0: np.ndarray, t: int | float, m: int | float, d_f: int | float,
     return np.array(dydt)
 
 
-def _solve(obj: SimObject, solver: Callable, dt: float,
+def _solve(proj: Projectile, solver: Callable, dt: float,
            max_steps: int | float) -> ProjectileData:
     """
-    :param obj: The SimObject of the projectile
+    :param proj: Some Projectile object
     :param solver: The solver used to solve the differential equation of motion
     :param dt: Timestep size [s]
     :param max_steps: Maximum amount of timesteps to take
     :return: A ProjectileData object containing the simulation results
     """
-    proj = obj.proj
     pos = np.zeros(shape=(1, 2))
     vel = np.zeros(shape=(1, 2))
     pos[0] = proj.p0
@@ -110,7 +109,7 @@ def _solve(obj: SimObject, solver: Callable, dt: float,
         temp, _, rho = atmos.get_atmos_data(h=pos[n, 1])
         re = reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
-        c_d = obj.drag_corr.eval(re=re)
+        c_d = proj.get_cd(re=re)
         cd.append(c_d)
         drag_f = _drag_force(rho=rho, area=proj.proj_area, c_d=c_d, vel=vel[n])
         t = dt * (n + 1)
@@ -125,11 +124,11 @@ def _solve(obj: SimObject, solver: Callable, dt: float,
     if n >= max_steps:
         print(f"INFO: Maximum amount of iterations reached for "
               f"projectile {obj.proj}.")
-    return ProjectileData(proj=obj.proj, coords=pos, vel=vel, cd=np.array(cd),
+    return ProjectileData(proj=proj, coords=pos, vel=vel, cd=np.array(cd),
                           rey=np.array(rey), dt=dt)
 
 
-def simulate(*args: SimObject, solver: Callable, dt: int | float,
+def simulate(*args: Projectile, solver: Callable, dt: int | float,
              max_steps: int = 1e5) -> list[ProjectileData]:
     """
     Calculates the trajectory of the projectile with air resistance, if
@@ -137,7 +136,7 @@ def simulate(*args: SimObject, solver: Callable, dt: int | float,
     Otherwise air resistance is neglected. The simulation is continued until
     the projectile hits the ground or the max_steps amount of timesteps are
     simulated.
-    :param args: Arbitrary amount of SimObjects to run the simulation for
+    :param args: Arbitrary amount of Projectiles to run the simulation for
     :param solver: The solver function used to solve the differential equation
     of motion
     :param dt: Timestep [s]
@@ -147,8 +146,8 @@ def simulate(*args: SimObject, solver: Callable, dt: int | float,
     for all given args
     """
     data_objs = []
-    for obj in args:
-        data_obj = _solve(obj=obj, solver=solver, dt=dt, max_steps=max_steps)
+    for proj in args:
+        data_obj = _solve(proj=proj, solver=solver, dt=dt, max_steps=max_steps)
         data_objs.append(data_obj)
     return data_objs
 
@@ -219,15 +218,15 @@ def display_results(*args: ProjectileData) -> None:
     plt.show()
 
 
-def speed2velocity(v0: int | float, angle: int | float) -> np.ndarray:
+def speed2velocity(speed: int | float, angle: int | float) -> np.ndarray:
     """
     Creates a velocity vector from the given speed and launch angle
-    :param v0:
-    :param angle:
+    :param speed: Speed in units of [m/s]
+    :param angle: Angle in degrees
     :return:
     """
     angle = np.deg2rad(angle)
-    return np.array([np.cos(angle), np.sin(angle)]) * v0
+    return np.array([np.cos(angle), np.sin(angle)]) * speed
 
 
 def main() -> None:
@@ -240,21 +239,19 @@ def main() -> None:
     p0_1 = np.array([0, 0], dtype=np.float64)
     p0_2 = np.array([0, 0], dtype=np.float64)
     # Initial velocities
-    v0_1 = speed2velocity(v0=v0_mag, angle=angle)
-    v0_2 = speed2velocity(v0=v0_mag, angle=angle)
+    v0_1 = speed2velocity(speed=v0_mag, angle=angle)
+    v0_2 = speed2velocity(speed=v0_mag, angle=angle)
     dt = .01  # Timestep [s]
 
     # Create some projectiles and stuff
-    shell = Shell(m=m, p0=p0_1, v0=v0_1, d=d, name="Shell")
-    ball = Sphere(m=m, p0=p0_2, v0=v0_2, r=d / 2, name="Sphere")
-    shell_corr = HolzerSommerfeld(proj=shell)
-    ball_corr = HolzerSommerfeld(proj=ball)
-    shell_obj = SimObject(proj=shell, drag_corr=shell_corr)
-    ball_obj = SimObject(proj=ball, drag_corr=ball_corr)
+    shell_corr = HolzerSommerfeld
+    ball_corr = HaiderLevenspiel 
+    shell = Shell(m=m, p0=p0_1, v0=v0_1, d=d, drag_corr=shell_corr, name="Shell")
+    ball = Sphere(m=m, p0=p0_2, v0=v0_2, r=d / 2, drag_corr=ball_corr, name="Sphere")
 
     # Simulate
     solver = rk4
-    shell_data, ball_data = simulate(shell_obj, ball_obj, solver=solver, dt=dt)
+    shell_data, ball_data = simulate(shell, ball, solver=solver, dt=dt)
     display_results(shell_data, ball_data)
 
 

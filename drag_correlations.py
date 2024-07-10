@@ -9,7 +9,6 @@ Numbers (2023)
 
 import numpy as np
 
-from projectiles import Projectile
 from abc import ABC, abstractmethod
 
 
@@ -18,16 +17,26 @@ class DragCorrelation(ABC):
     @abstractmethod
     def eval(self, re: int | float) -> float:
         """
+        :param re: Reynolds number [-]
         :return:
         """
+        raise NotImplementedError("Abstract method called")
 
 
 class HaiderLevenspiel(DragCorrelation):
-    def __init__(self, proj: Projectile) -> None:
+    def __init__(self, surf_area: int | float, volume: int | float,
+                 proj_area: int | float = None) -> None:
         """
-        :param proj:
+        :param surf_area: Total surface area of the projectile [m^2]
+        :param volume: Volume of the projectile [m^3]
+        :param proj_area: Projected surface area of the projectile [m^2]
+        :return:
         """
-        self.proj = proj
+        # Projected area is not needed for this correlation, but it should accept
+        # it anyway, so that this accepts the same parameters as HolzerSommerfeld 
+        _ = proj_area
+        self.surf_area = surf_area
+        self.volume = volume
         self.phi = self._calc_sphericity()
         self.a = self._calc_a()
         self.b = self._calc_b()
@@ -41,12 +50,12 @@ class HaiderLevenspiel(DragCorrelation):
         :return:
         """
         # Radius of a sphere of the same volume as the given projectile
-        r = np.cbrt(self.proj.volume * 3 / 4 / np.pi)
+        r = np.cbrt(self.volume * 3 / 4 / np.pi)
         # Surface area of this volume equivalent sphere
         s_area = 4 * np.pi * r * r
         # Sphericity is the ratio between the spheres and the projectiles
         # surface areas
-        phi = s_area / self.proj.surf_area
+        phi = s_area / self.surf_area
         # The sphericity should never be above 1, let's add a guard for it
         # in case I made a mistake
         if phi > 1:
@@ -88,7 +97,7 @@ class HaiderLevenspiel(DragCorrelation):
     def eval(self, re: int | float) -> float:
         """
         The correlation itself I suppose
-        :param re:
+        :param re: Reynolds number [-]
         :return:
         """
         # "t" stands for "term"
@@ -99,11 +108,17 @@ class HaiderLevenspiel(DragCorrelation):
 
 
 class HolzerSommerfeld(DragCorrelation):
-    def __init__(self, proj: Projectile) -> None:
+    def __init__(self, surf_area: int | float, volume: int | float,
+                 proj_area: int | float) -> None:
         """
-        :param proj:
+        :param surf_area: Total surface area of the projectile [m^2]
+        :param volume: Volume of the projectile [m^3]
+        :param proj_area: Projected surface area of the projectile [m^2]
+        :return:
         """
-        self.proj = proj
+        self.surf_area = surf_area
+        self.volume = volume
+        self.proj_area = proj_area
         self.phi = self._calc_sphericity()
         self.psi = self._calc_cw_sphericity()
 
@@ -114,12 +129,12 @@ class HolzerSommerfeld(DragCorrelation):
         :return:
         """
         # Radius of a sphere of the same volume as the given projectile
-        r = np.cbrt(self.proj.volume * 3 / 4 / np.pi)
+        r = np.cbrt(self.volume * 3 / 4 / np.pi)
         # Surface area of this volume equivalent sphere
         s_area = 4 * np.pi * r * r
-        # Sphericity is the ratio between the spheres and the projectiles
+        # Sphericity is the ratio between the sphere's and the projectile's
         # surface areas
-        phi = s_area / self.proj.surf_area
+        phi = s_area / self.surf_area
         # The sphericity should never be above 1, let's add a guard for it
         # in case I made a mistake
         if phi > 1:
@@ -133,15 +148,15 @@ class HolzerSommerfeld(DragCorrelation):
         :return:
         """
         # Radius of a sphere of the same volume as the given projectile
-        r = np.cbrt(self.proj.volume * 3 / 4 / np.pi)
+        r = np.cbrt(self.volume * 3 / 4 / np.pi)
         # Cross-sectional area of the volume equivalent sphere
         proj_area = np.pi * r * r
-        return proj_area / self.proj.proj_area
+        return proj_area / self.proj_area
 
     def eval(self, re: int | float) -> float:
         """
         The correlation itself or something
-        :param re:
+        :param re: Reynolds number [-]
         :return:
         """
         # "t" stands for "term"
@@ -151,3 +166,4 @@ class HolzerSommerfeld(DragCorrelation):
         e = .4 * np.power(-np.log(self.phi), .2)  # Exponent in t4
         t4 = .42 * np.power(10, e) * 1 / self.psi
         return t1 + t2 + t3 + t4
+

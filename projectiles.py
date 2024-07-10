@@ -4,12 +4,10 @@ File containing objects for different projectiles
 
 import numpy as np
 
-from collections import namedtuple
-from abc import ABC, abstractmethod
 
-# Basically just a definition for a "Simulation object" that is used in the
-# simulations to bind together a projectile and a drag correlation
-SimObject = namedtuple(typename="SimObject", field_names=["proj", "drag_corr"])
+from typing import Type
+from abc import ABC, abstractmethod
+from drag_correlations import DragCorrelation
 
 
 class Projectile(ABC):
@@ -21,6 +19,7 @@ class Projectile(ABC):
     p0: np.ndarray
     v0: np.ndarray
     size: int | float
+    drag_corr = Type[DragCorrelation]
     name: str = None
 
     @property
@@ -30,6 +29,7 @@ class Projectile(ABC):
         The cross sectional area of the projectile
         :return:
         """
+        raise NotImplementedError("Abstract method called")
 
     @property
     @abstractmethod
@@ -38,6 +38,7 @@ class Projectile(ABC):
         The surface area of the projectile
         :return:
         """
+        raise NotImplementedError("Abstract method called")
 
     @property
     @abstractmethod
@@ -46,29 +47,45 @@ class Projectile(ABC):
         Volume of the projectile
         :return:
         """
+        raise NotImplementedError("Abstract method called")
+
+    @abstractmethod
+    def get_cd(re: int | float) -> int | float:
+        """
+        Calculates the drag coefficient
+        :param re: Reynolds number [-]
+        :return:
+        """
+        raise NotImplementedError("Abstract method called")
 
     @abstractmethod
     def __str__(self) -> str:
         """
         :return:
         """
+        raise NotImplementedError("Abstract method called")
 
 
 class Sphere(Projectile):
     def __init__(self, m: int | float, p0: np.ndarray, v0: np.ndarray,
-                 r: int | float, name: str = None) -> None:
+                 r: int | float, drag_corr: Type[DragCorrelation],
+                 name: str = None) -> None:
         """
         :param m: Mass [kg]
         :param p0: Initial position [m]
         :param v0: Initial velocity [m/s]
         :param r: Radius [m]
+        :param drag_corr: Some DragCorrelation class
         :param name: Optional name for the projectile, will be used in the legend
         of the plots so that the projectile can be identified.
+        :return:
         """
         self.m = m
         self.p0 = p0
         self.v0 = v0
         self.r = r
+        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
+                                   proj_area=self.proj_area)
         self.name = name
         self.size = 2 * r
 
@@ -96,6 +113,15 @@ class Sphere(Projectile):
         """
         return 4 / 3 * np.pi * self.r * self.r * self.r
 
+    def get_cd(self, re: int | float) -> int | float:
+        """
+        Calculates the drag coefficient based on the Reynolds number using
+        the drag correlation attribute
+        :param re: Reynolds number [-]
+        :return:
+        """
+        return self.drag_corr.eval(re=re)
+
     def __str__(self) -> str:
         """
         :return:
@@ -107,19 +133,25 @@ class Sphere(Projectile):
 
 class Cube(Projectile):
     def __init__(self, m: int | float, p0: np.ndarray, v0: np.ndarray,
-                 d: int | float, name: str = None) -> None:
+                 d: int | float, drag_corr: Type[DragCorrelation],
+                 name: str = None) -> None:
         """
         :param m: Mass [kg]
         :param p0: Initial position [m]
         :param v0: Initial velocity [m/s]
         :param d: Side length [m]
-        :param name:
+        :param drag_corr: Some DragCorrelation class
+        :param name: Optional name for the projectile, will be used in the legend
+        of the plots so that the projectile can be identified.
+        :return:
         """
         self.m = m
         self.p0 = p0
         self.v0 = v0
         self.d = d
         self.size = d
+        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
+                                   proj_area=self.proj_area)
         self.name = name
 
     @property
@@ -146,6 +178,15 @@ class Cube(Projectile):
         """
         return self.d * self.d * self.d
 
+        def get_cd(self, re: int | float) -> int | float:
+            """
+            Calculates the drag coefficient based on the Reynolds number using
+            the drag correlation attribute
+            :param re: Reynolds number [-]
+            :return:
+            """
+            return self.drag_corr.eval(re=re)
+
     def __str__(self) -> str:
         """
         :return:
@@ -169,15 +210,20 @@ class Shell(Sphere):
     https://en.wikipedia.org/wiki/Bofors_57_mm_Naval_Automatic_Gun_L/70.
     """
     def __init__(self, m: int | float, p0: np.ndarray, v0: np.ndarray,
-                 d: int | float, name: str = None) -> None:
+                 d: int | float, drag_corr: Type[DragCorrelation],
+                 name: str = None) -> None:
         """
-        :param m:
-        :param p0:
-        :param v0:
-        :param d:
-        :param name:
+        :param m: Mass of the projectile [kg]
+        :param p0: Initial position of the projectile [m]
+        :param v0: Initial velocity of the projectile [m/s]
+        :param d: Diameter of the sphere [m]
+        :param drag_corr: Some DragCorrelation class
+        :param name: Optional name for the projectile, will be used in the legend
+        of the plots so that the projectile can be identified.
+        :return:
         """
-        super().__init__(m=m, p0=p0, v0=v0, r=d / 2.25, name=name)
+        super().__init__(m=m, p0=p0, v0=v0, r=d / 2.25, drag_corr=drag_corr,
+                         name=name)
 
 # The currently available drag correlations don't work well with the
 # elongated shape of a bullet/artillery shell or something like that
