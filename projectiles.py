@@ -5,10 +5,12 @@ File containing objects for different projectiles
 import numpy as np
 
 
-from typing import Type
+from typing import Callable, Type
 from abc import ABC, abstractmethod
 from drag_correlations import DragCorrelation
 
+# TODO: Probably bad idea to use keyword arguments in user provided functions
+# and classes
 
 class Projectile(ABC):
     """
@@ -165,7 +167,7 @@ class Cube(Projectile):
     @property
     def surf_area(self) -> int | float:
         """
-        THe surface area of a cube
+        The surface area of a cube
         :return:
         """
         return self.d * self.d * 6
@@ -224,6 +226,96 @@ class Shell(Sphere):
         """
         super().__init__(m=m, p0=p0, v0=v0, r=d / 2.25, drag_corr=drag_corr,
                          name=name)
+
+
+class Rocket(Projectile):
+    """
+    The rocket is here assumed to essentially be a shell shaped thing that
+    has a changing mass and non-zero thrust.
+    """
+    def __init__(self, p0: np.ndarray, d: int | float, length: int | float,
+                 mass_fun: Callable, thrust_fun: Callable,
+                 drag_corr: Type[DragCorrelation], name: str = None) -> None:
+        """
+        :param p0: Initial position [m]
+        :param d: Diameter [m]
+        :param length: Length [m]
+        :param mass_fun: Function that describes the mass of the rocket
+        as a function of time [kg]
+        :param thrust_fun: Function that describes the thrust produced
+        by the rocket as a function of time [N]
+        :param drag_corr: Some DragCorrelation class
+        :oaram name: Optional name for the projectile, will be used in the legend
+        of the plots so that the projectile can be identified.
+        :return:
+        """
+        self.p0 = p0
+        self.d = d
+        self.r = d / 2
+        self.length = length
+        self.mass_fun = mass_fun
+        self.thrust_fun = thrust_fun
+        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
+                                   proj_area=self.proj_area)
+        self.name = name
+
+    @property
+    def proj_area(self) -> int | float:
+        """
+        The projected area of the rocket (assumed to be parallel to the flow)
+        :return:
+        """
+        return np.pi * self.r * self.r
+
+    @property
+    def surf_area(self) -> int | float:
+        """
+        The surface area of the rocket (here assumed to be a cylinder)
+        :return:
+        """
+        return self.proj_area * 2 + np.pi * self.d * self.length
+
+    @property
+    def volume(self) -> int | float:
+        """
+        Volume of a cube
+        :return:
+        """
+        return self.proj_area * self.length
+
+    def get_cd(self, re: int | float) -> int | float:
+        """
+        Calculates the drag coefficient based on the Reynolds number using
+        the drag correlation attribute
+        :param re: Reynolds number [-]
+        :return:
+        """
+        return self.drag_corr.eval(re=re)
+
+    def get_mass(self, t: int | float) -> int | float:
+        """
+        Gets the mass at the given time
+        :param t: Time [s]
+        :return:
+        """
+        return self.mass_fun(t=t)
+
+    def get_thrust(self, t: int | float) -> int | float:
+        """
+        Gets the thrust at the given 01:42
+        :param t: Time [s]
+        :return:
+        """
+        return self.thrust_fun(t=t)
+
+    def __str__(self) -> str:
+        """
+        :return:
+        """
+        if self.name is None:
+            return f"{self.__class__.__name__}"
+        return self.name
+
 
 # The currently available drag correlations don't work well with the
 # elongated shape of a bullet/artillery shell or something like that
