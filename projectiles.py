@@ -178,14 +178,14 @@ class Cube(Projectile):
         """
         return self.d * self.d * self.d
 
-        def get_cd(self, re: int | float) -> int | float:
-            """
-            Calculates the drag coefficient based on the Reynolds number using
-            the drag correlation attribute
-            :param re: Reynolds number [-]
-            :return:
-            """
-            return self.drag_corr.eval(re=re)
+    def get_cd(self, re: int | float) -> int | float:
+        """
+        Calculates the drag coefficient based on the Reynolds number using
+        the drag correlation attribute
+        :param re: Reynolds number [-]
+        :return:
+        """
+        return self.drag_corr.eval(re=re)
 
     def __str__(self) -> str:
         """
