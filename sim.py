@@ -9,6 +9,7 @@ velocity, meaning that the projectile does not have any thrust.
 """
 
 import atmos
+import utils
 import constants
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,57 +19,6 @@ from typing import Callable
 from projectiledata import ProjectileData
 from projectiles import Projectile, Shell, Sphere
 from drag_correlations import HaiderLevenspiel, HolzerSommerfeld
-
-
-def vec_len(v: np.ndarray) -> int | float:
-    """
-    Length of a vector
-    :param v:
-    :return:
-    """
-    return np.sqrt(np.dot(v, v))
-
-
-def reynolds(size: int | float, rho: int | float, temp: int | float,
-              vel: np.ndarray) -> int | float:
-    """
-    Calculates the Reynolds number of the flow around a sphere
-    :param size: The characteristic size of the project (for a sphere this
-    is usually the diameter) [m]
-    :param rho: Air density [kg/m^3]
-    :param temp: Air temperature [K]
-    :param vel: Velocity of the projectile [m/s]
-    :return:
-    """
-    visc = atmos.visc(rho=rho, temp=temp)
-    vmag = vec_len(vel)
-    return rho * vmag * size / visc
-
-
-def _grav_force(m: int | float, h: int | float) -> np.ndarray:
-    """
-    Calculates the acceleration due to gravital attraction
-    between the Earth and the projectile
-    :param m: Mass of the projectile [kg]
-    :param h: Height of the projectile related to Earth's surface [m]
-    :return: Gravitational force as a vector [N]
-    """
-    r = constants.r_e + h
-    return np.array([0, -constants.big_g * constants.m_e * m / (r * r)])
-
-
-def _drag_force(rho: int | float, area: int | float, c_d: int | float,
-                vel: np.ndarray) -> np.ndarray:
-    """
-    Calculates the drag force on the onject
-    :param rho: Air density [kg/m^3]
-    :param area: Cross sectional area of the projectile [m^2]
-    :param c_d: Drag coefficient [-]
-    :param vel: Velocity of the projectile as a vector [m/s]
-    :return: Drag force as a vector [N]
-    """
-    k = .5 * rho * area * c_d
-    return -k * vec_len(vel) * vel
 
 
 def _diff_eq(y0: np.ndarray, t: int | float, m: int | float, d_f: int | float,
@@ -105,13 +55,13 @@ def _solve(proj: Projectile, solver: Callable, dt: float,
     rey = []
     n = 0
     while n <= max_steps:
-        grav_f = _grav_force(m=proj.m, h=float(pos[n, 1]))
+        grav_f = utils.grav_force(m=proj.m, h=float(pos[n, 1]))
         temp, _, rho = atmos.get_atmos_data(h=pos[n, 1])
-        re = reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
+        re = utils.reynolds(proj.size, rho=rho, temp=temp, vel=vel[n])
         rey.append(re)
         c_d = proj.get_cd(re=re)
         cd.append(c_d)
-        drag_f = _drag_force(rho=rho, area=proj.proj_area, c_d=c_d, vel=vel[n])
+        drag_f = utils.drag_force(rho=rho, area=proj.proj_area, c_d=c_d, vel=vel[n])
         t = dt * (n + 1)
         n_pos, n_vel = solver(diff_eq=_diff_eq, y0=np.vstack((pos[n], vel[n])), t=t,
                               dt=dt, m=proj.m, d_f=drag_f, g_f=grav_f)
@@ -218,17 +168,6 @@ def display_results(*args: ProjectileData) -> None:
     plt.show()
 
 
-def speed2velocity(speed: int | float, angle: int | float) -> np.ndarray:
-    """
-    Creates a velocity vector from the given speed and launch angle
-    :param speed: Speed in units of [m/s]
-    :param angle: Angle in degrees
-    :return:
-    """
-    angle = np.deg2rad(angle)
-    return np.array([np.cos(angle), np.sin(angle)]) * speed
-
-
 def main() -> None:
     # Define some initial values
     m = 9.4  # Mass of the projectiles [kg]
@@ -239,8 +178,8 @@ def main() -> None:
     p0_1 = np.array([0, 0], dtype=np.float64)
     p0_2 = np.array([0, 0], dtype=np.float64)
     # Initial velocities
-    v0_1 = speed2velocity(speed=v0_mag, angle=angle)
-    v0_2 = speed2velocity(speed=v0_mag, angle=angle)
+    v0_1 = utils.speed2velocity(speed=v0_mag, angle=angle)
+    v0_2 = utils.speed2velocity(speed=v0_mag, angle=angle)
     dt = .01  # Timestep [s]
 
     # Create some projectiles and stuff
