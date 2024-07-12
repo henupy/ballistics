@@ -9,8 +9,6 @@ from typing import Callable, Type
 from abc import ABC, abstractmethod
 from drag_correlations import DragCorrelation
 
-# TODO: Probably bad idea to use keyword arguments in user provided functions
-# and classes
 
 class Projectile(ABC):
     """
@@ -255,6 +253,7 @@ class Rocket(Projectile):
         self.thrust_fun = thrust_fun
         self.drag_corr = drag_corr(self.surf_area, self.volume, self.proj_area)
         self.name = name
+        self.size = d
 
     @property
     def proj_area(self) -> int | float:
