@@ -59,7 +59,7 @@ def _lower_atmosphere(h: int | float) -> tuple[float, float, float]:
         t = 356.65 - 2 * h
         p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
     else:
-        raise ValueError("Invalid geopotential height {h}")
+        raise ValueError(f"Invalid geopotential height {h}")
 
     rho = p / (r * t)
     return t, p, rho
@@ -217,7 +217,7 @@ def get_atmos_data(h: int | float) -> tuple[float, float, float]:
         rhod = -0.06600998
         rhoe = -6.137674
     else:
-        raise ValueError("Invalid height {h}")
+        raise ValueError(f"Invalid height {h}")
 
     p = _base_eq(h=h, a=pa, b=pb, c=pc, d=pd, e=pe)
     rho = _base_eq(h=H, a=rhoa, b=rhob, c=rhoc, d=rhod, e=rhoe)
