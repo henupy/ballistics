@@ -100,6 +100,8 @@ class HaiderLevenspiel(DragCorrelation):
         :param re: Reynolds number [-]
         :return:
         """
+        if re <= 0:
+            return 0.
         # "t" stands for "term"
         t1 = 24 / re
         t2 = 1 + self.a * np.power(re, self.b)
@@ -159,6 +161,8 @@ class HolzerSommerfeld(DragCorrelation):
         :param re: Reynolds number [-]
         :return:
         """
+        if re <= 0:
+            return 0.
         # "t" stands for "term"
         t1 = 8 / re * 1 / np.sqrt(self.psi)
         t2 = 16 / re * 1 / np.sqrt(self.phi)
