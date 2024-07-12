@@ -5,11 +5,11 @@ Does not need/use the objects and classes and stuff that's used in the "fuller"
 simulation.
 """
 
+import utils
 import numpy as np
 import matplotlib.pyplot as plt
 
 from typing import Callable
-from sim import speed2velocity, vec_len
 
 
 def _diff_eq(y0: np.ndarray, t: int | float, a: int | float) -> np.ndarray:
@@ -22,7 +22,7 @@ def _diff_eq(y0: np.ndarray, t: int | float, a: int | float) -> np.ndarray:
     """
     _ = t  # Unused variable, this suppresses the warning
     x, v = y0
-    dydt = [v, -a * vec_len(v) * v + np.array([0, -9.81])]
+    dydt = [v, -a * utils.vec_len(v) * v + np.array([0, -9.81])]
     return np.array(dydt)
 
 
@@ -88,7 +88,7 @@ def main() -> None:
     p0 = np.array([0, 0])
     v0_mag = 1035
     angle = 45
-    v0 = speed2velocity(v0=v0_mag, angle=angle)
+    v0 = utils.speed2velocity(speed=v0_mag, angle=angle)
 
     # Run the simulation and show the results
     sol = simulate(p0=p0, v0=v0, tspan=tspan, m=m, c_d=c_d, area=area)
