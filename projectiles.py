@@ -86,8 +86,7 @@ class Sphere(Projectile):
         self.p0 = p0
         self.v0 = v0
         self.r = r
-        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
-                                   proj_area=self.proj_area)
+        self.drag_corr = drag_corr(self.surf_area, self.volume, self.proj_area)
         self.name = name
         self.size = 2 * r
 
@@ -122,7 +121,7 @@ class Sphere(Projectile):
         :param re: Reynolds number [-]
         :return:
         """
-        return self.drag_corr.eval(re=re)
+        return self.drag_corr.eval(re)
 
     def __str__(self) -> str:
         """
@@ -152,8 +151,7 @@ class Cube(Projectile):
         self.v0 = v0
         self.d = d
         self.size = d
-        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
-                                   proj_area=self.proj_area)
+        self.drag_corr = drag_corr(self.surf_area, self.volume, self.proj_area)
         self.name = name
 
     @property
@@ -187,7 +185,7 @@ class Cube(Projectile):
         :param re: Reynolds number [-]
         :return:
         """
-        return self.drag_corr.eval(re=re)
+        return self.drag_corr.eval(re)
 
     def __str__(self) -> str:
         """
@@ -255,8 +253,7 @@ class Rocket(Projectile):
         self.length = length
         self.mass_fun = mass_fun
         self.thrust_fun = thrust_fun
-        self.drag_corr = drag_corr(surf_area=self.surf_area, volume=self.volume,
-                                   proj_area=self.proj_area)
+        self.drag_corr = drag_corr(self.surf_area, self.volume, self.proj_area)
         self.name = name
 
     @property
@@ -290,7 +287,7 @@ class Rocket(Projectile):
         :param re: Reynolds number [-]
         :return:
         """
-        return self.drag_corr.eval(re=re)
+        return self.drag_corr.eval(re)
 
     def get_mass(self, t: int | float) -> int | float:
         """
@@ -298,7 +295,7 @@ class Rocket(Projectile):
         :param t: Time [s]
         :return:
         """
-        return self.mass_fun(t=t)
+        return self.mass_fun(t)
 
     def get_thrust(self, t: int | float) -> int | float:
         """
@@ -306,7 +303,7 @@ class Rocket(Projectile):
         :param t: Time [s]
         :return:
         """
-        return self.thrust_fun(t=t)
+        return self.thrust_fun(t)
 
     def __str__(self) -> str:
         """
