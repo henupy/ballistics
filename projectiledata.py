@@ -18,13 +18,15 @@ def _speed(vel: np.ndarray) -> np.ndarray:
 
 class ProjectileData:
     def __init__(self, proj: Projectile, coords: np.ndarray, vel: np.ndarray,
-                 cd: np.ndarray, rey: np.ndarray, dt: int | float) -> None:
+                  dt: int | float, cd: np.ndarray = None, rey: np.ndarray = None) -> None:
         """
         :param proj: A Projectile object representing the projectile itself
         :param coords: Coordinates of the trajectory
         :param vel: Velocity of the projectile at different timepoints
+        :param dt: Timestep used in the simulations [s]
         :param cd: Drag coefficient at different timepoints
         :param rey: Reynolds number at different timepoints
+        :return:
         """
         self.proj = proj
         self.coords = coords
@@ -37,4 +39,8 @@ class ProjectileData:
         self.y_max = np.max(y)
         self.time = x.shape[0] * dt
         self.speed = _speed(vel=vel)
-        self.ke = .5 * proj.m * np.power(self.speed, 2)
+        try:
+            self.ke = .5 * proj.m * np.power(self.speed, 2)
+        except AttributeError:
+            pass
+
