@@ -81,11 +81,9 @@ def _solve(proj: Projectile, solver: Callable, dt: float,
 def simulate(*args: Projectile, solver: Callable, dt: int | float,
              max_steps: int = 1e5) -> list[ProjectileData]:
     """
-    Calculates the trajectory of the projectile with air resistance, if
-    all necessary parameters are provided with the ProjectileData object.
-    Otherwise air resistance is neglected. The simulation is continued until
-    the projectile hits the ground or the max_steps amount of timesteps are
-    simulated.
+    Calculates the trajectory of the projectile with air resistance. The simulation
+    is continued until the projectile hits the ground or the max_steps amount of
+    timesteps are simulated.
     :param args: Arbitrary amount of Projectiles to run the simulation for
     :param solver: The solver function used to solve the differential equation
     of motion
