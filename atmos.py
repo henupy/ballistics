@@ -22,7 +22,7 @@ def _get_geopotential_height(h: int | float) -> int | float:
     """
     # TODO: The model says that we should use the radius of the Earth at the
     # latitude where the object is flying to be more exact
-    r0 = constants.r_e  # Mean radius of the earth
+    r0 = constants.r_e * 1e-3  # Mean radius of the Earth [km]
     return r0 * h / (r0 + h)
 
 
@@ -54,7 +54,7 @@ def _lower_atmosphere(h: int | float) -> tuple[float, float, float]:
         p = 110.9063 * np.exp(-a * (h - 47) / 270.65)
     elif 51 <= h < 71:
         t = 413.45 - 2.8 * h
-        p = 66.93887 * np.power((270.65 / 270.65 - 2.8 * (h - 51)), a / -2.8)
+        p = 66.93887 * np.power((270.65 / (270.65 - 2.8 * (h - 51))), a / -2.8)
     elif 71 <= 84.852:
         t = 356.65 - 2 * h
         p = 3.956429 * np.power((214.65 / (214.65 - 2 * (h - 71))), a / -2)
@@ -165,7 +165,7 @@ def get_atmos_data(h: int | float) -> tuple[float, float, float]:
         pe = 19.19151
         rhoa = 1.906032e-8
         rhob = -1.527799e-5
-        rhoc = 0.04724294
+        rhoc = 0.004724294
         rhod = -0.6992340
         rhoe = 20.50921
     elif 200 <= h < 300:
@@ -179,7 +179,7 @@ def get_atmos_data(h: int | float) -> tuple[float, float, float]:
         rhob = -1.451051e-6
         rhoc = 6.910474e-4
         rhod = -0.1736220
-        rhoe = 5.321644
+        rhoe = -5.321644
     elif 300 <= h < 500:
         t = 1000 - 640 * np.exp(-0.01875 * a)
         pa = 9.814674e-11
@@ -217,10 +217,11 @@ def get_atmos_data(h: int | float) -> tuple[float, float, float]:
         rhod = -0.06600998
         rhoe = -6.137674
     else:
-        raise ValueError(f"Invalid height {h}")
+        # Return some semi random stuff for h > 1000 km
+        return 1000., 0., 0.
 
     p = _base_eq(h=h, a=pa, b=pb, c=pc, d=pd, e=pe)
-    rho = _base_eq(h=H, a=rhoa, b=rhob, c=rhoc, d=rhod, e=rhoe)
+    rho = _base_eq(h=h, a=rhoa, b=rhob, c=rhoc, d=rhod, e=rhoe)
     return t, p, rho
 
 
