@@ -43,7 +43,6 @@ def f9_mass_fun(t: int | float, payload: int | float) -> int | float:
     :param payload: Payload mass [kg]
     :return:
     """
-    # TODO: Payload mass is ignored
     if t < 0:
         raise ValueError(f"Time must be positive, now got {t}")
     stage1_empty_mass = 25600  # [kg]
