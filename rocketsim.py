@@ -26,6 +26,9 @@ def flight_angle(t: int | float) -> int | float:
     :param t: Flight time [s]
     :return: 
     """
+    if t < 30:
+        return 90
+    t -= 30
     turning_rate = .25  # [deg/s]
     return max(10, 90 - turning_rate * t)
 
@@ -84,7 +87,6 @@ def f9_thrust_fun(t: int | float, angle_fun: Callable) -> np.ndarray:
     if t <= stage1_burn_time:
         return direc * stage1_thrust
     elif stage1_burn_time < t <= (stage1_burn_time + stage2_burn_time):
-        t -= stage1_burn_time
         return direc * stage2_thrust
     else:
         return 0
@@ -103,7 +105,7 @@ def _diff_eq(y0: np.ndarray, t: int | float, m: int | float, drag: int | float,
     :return:
     """
     _ = t  # Unused variable, this suppresses the warning
-    x, v = y0
+    _, v = y0
     dydt = [v, (drag + gravity + thrust) / m]
     return np.array(dydt)
 
@@ -138,7 +140,7 @@ def _solve(proj: Rocket, solver: Callable, dt: float,
             print(f"INFO: Simulation ended early due to height being < 0")
             break
 
-    return ProjectileData(proj=proj, coords=pos[:n - 1], vel=vel[:n - 1], dt=dt)
+    return ProjectileData(proj=proj, coords=pos[:n], vel=vel[:n], dt=dt)
 
 
 def simulate(*args: Rocket, solver: Callable, dt: int | float,
@@ -172,10 +174,10 @@ def display_results(*args: ProjectileData) -> None:
     fig2, ax2 = plt.subplots()
     for data_obj in args:
         tspan = np.linspace(0, data_obj.time, int(data_obj.time / data_obj.dt))
-        print(f"Flight data for {data_obj.proj}:")
-        print(f"Total distance (in x-direction): {data_obj.x_dist:.3f} m")
-        print(f"Highest point: {data_obj.y_max:.3f} m")
-        print(f"Flight time: {data_obj.time:.3f} s")
+        print(f"    Flight data for {data_obj.proj}:")
+        print(f"    Total distance (in x-direction): {data_obj.x_dist:.3f} m")
+        print(f"    Highest point: {data_obj.y_max:.3f} m")
+        print(f"    Flight time: {data_obj.time:.3f} s")
         print()
         plt.figure(fig1)
         plt.plot(tspan, data_obj.coords[:, 1] / 1e3,
